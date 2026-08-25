@@ -1,8 +1,31 @@
 """portr8 score overlay — stamps score banners on generated images."""
 
+import re
 from pathlib import Path
 from PIL import Image as PILImage, ImageDraw, ImageFont
 from lib.models import JudgeVerdict
+
+
+def _strip_emoji(text: str) -> str:
+    """Remove emoji characters from text for Pillow rendering.
+    
+    DejaVu and most system fonts can't render emoji — they show as □.
+    """
+    # Remove characters outside Basic Multilingual Plane + common emoji ranges
+    emoji_pattern = re.compile(
+        "[\U0001F300-\U0001F9FF"   # Misc Symbols, Emoticons, etc.
+        "\U00002702-\U000027B0"    # Dingbats
+        "\U0000FE00-\U0000FE0F"    # Variation Selectors
+        "\U0000200D"               # Zero Width Joiner
+        "\U00002600-\U000026FF"    # Misc Symbols
+        "\U0000231A-\U0000231B"    # Watch, Hourglass
+        "\U00002B50"               # Star
+        "\U0000274C"               # Cross mark
+        "\U00002705"               # Check mark
+        "]+",
+        flags=re.UNICODE,
+    )
+    return emoji_pattern.sub("", text).strip()
 
 
 def get_verdict_color(verdict_label: str) -> tuple[int, int, int]:
@@ -52,13 +75,15 @@ def create_score_overlay(
     banner = PILImage.new('RGB', (width, banner_height), get_verdict_color(verdict.verdict_label))
     draw = ImageDraw.Draw(banner)
     
-    # Build banner text
-    photo_str = "✅" if verdict.is_photorealistic else "❌"
-    beautify_str = " ⚠️ BEAUTIFIED" if verdict.anti_beautification_flag else ""
+    # Build banner text (NO EMOJI — Pillow/DejaVu can't render them!)
+    photo_str = "YES" if verdict.is_photorealistic else "NO"
+    beautify_str = " BEAUTIFIED!" if verdict.anti_beautification_flag else ""
+    # Strip emoji from verdict label for Pillow rendering
+    clean_verdict = _strip_emoji(verdict.verdict_label)
     banner_text = (
         f"Iter {iteration} | "
         f"R:{verdict.resemblance_score:.1f} A:{verdict.adherence_score:.1f} | "
-        f"{verdict.verdict_label} | "
+        f"{clean_verdict} | "
         f"Photo:{photo_str}{beautify_str}"
     )
     
@@ -111,7 +136,7 @@ def create_failure_overlay(
     banner_text = (
         f":failure | Iter {iteration} | "
         f"R:{verdict.resemblance_score:.1f} A:{verdict.adherence_score:.1f} | "
-        f"{verdict.verdict_label}"
+        f"{_strip_emoji(verdict.verdict_label)}"
     )
     
     try:

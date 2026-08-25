@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.0] — 2026-08-25
+
+### 🚀 Full Implementation — All 11 Tasks Complete (50 tests ✅)
+
+#### Phase 1: Foundation
+- ✨ `lib/models.py` — 6 Pydantic v2 data models (JudgeVerdict, IterationRecord, RunConfig, etc.) with Italian verdict labels (CAPOLAVORO 🏆 / BUONO 👍 / COSÌ-COSÌ 😐 / SCHIFO 🤮)
+- 📝 `lib/ledger.py` — JSONL append-only ledger with convergence tracking and run summaries
+- 🏗️ `pyproject.toml` + `Justfile` — UV-based project scaffolding with 12 recipes
+
+#### Phase 2: Core Pipeline
+- ✨ `lib/generator.py` — Image generation with Files API transport, model fallback chain, and grid_cleaned priority
+- 👨‍⚖️ `lib/judge.py` — Dual-axis LLM judge (resemblance + adherence) with anti-beautification detection and photorealism check
+- 🧠 `lib/strategist.py` — Edit-vs-regenerate strategy engine with positive-only prompt augmentation (NEVER negative constraints)
+
+#### Phase 3: Polish
+- 🎨 `lib/overlay.py` — Pillow score banner overlay with color-coded Italian verdict labels
+- 🚀 `bin/portr8.py` — Main convergence loop CLI (PEP 723 inline deps, `uv run` compatible)
+- 📊 `lib/reporter.py` + `bin/report.py` — Markdown report generator with score progression and image gallery
+
+#### Phase 4: Advanced
+- 📏 `bin/calibrate.py` — AI judge calibration tool (multi-model comparison, interactive human ratings)
+- 👤 `bin/human_rate.py` — Human rating override tool with AI-vs-human comparison table
+
 ## [0.1.0] — 2026-08-25
 
 ### 🎉 Initial Release
@@ -12,16 +35,3 @@ Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachange
 - 📋 Agent instructions (`GEMINI.md`) with critical design constraints and task breakdown
 - 🏗️ Project scaffolding: `pyproject.toml`, `Justfile`, `.env.dist`, `.gitignore`
 - 🔒 Private data strategy: `.env` privatized via gprism, `data/characters/` symlinked to private vault
-
-### Planned (not yet implemented)
-
-- `lib/models.py` — Pydantic data models (JudgeVerdict, IterationRecord, RunConfig)
-- `lib/generator.py` — Image generation with Files API transport
-- `lib/judge.py` — Dual-axis LLM judge (resemblance + adherence + photorealism)
-- `lib/strategist.py` — Edit-vs-regenerate decision engine
-- `lib/overlay.py` — Pillow/FFmpeg score overlay
-- `lib/ledger.py` — JSONL iteration tracking
-- `lib/reporter.py` — Markdown/HTML convergence report
-- `bin/portr8.py` — Main CLI orchestrator
-- `bin/calibrate.py` — Rater calibration tool
-- `bin/report.py` — Standalone report generator

@@ -1,0 +1,35 @@
+# portr8 .gitignore
+
+# === Private / PII ===
+.env
+data/characters/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+.uv/
+
+# === portr8 outputs (large, per-run) ===
+out/
+calibration/
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Misc ===
+*.log
+.cache/

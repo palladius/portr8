@@ -65,6 +65,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dual-strategy", action="store_true", help="Use dual strategy (both edit + regenerate per iteration, pick best)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     parser.add_argument("--ref-transport", choices=["files_api", "pil"], default="files_api", help="Reference transport method")
+    parser.add_argument("--image-type", choices=["photo", "cartoon", "illustration"], default="photo",
+                        help="Image style type (default: photo — cartoon is too easy!)")
     return parser.parse_args()
 
 
@@ -93,6 +95,7 @@ def main():
         dual_strategy=args.dual_strategy,
         seed=args.seed,
         ref_transport=args.ref_transport,
+        image_type=args.image_type,
         portr8_version=version,
     )
     
@@ -104,6 +107,7 @@ def main():
         f"🎯 Target: [green]{config.target_score}/10[/green] (both axes)\n"
         f"🔄 Max iterations: {config.max_iterations}\n"
         f"🧠 Strategy: {'Dual (edit+regenerate)' if config.dual_strategy else 'Adaptive'}\n"
+        f"🖼️  Image type: {config.image_type}\n"
         f"🎨 Model: {config.image_model}",
         title="portr8",
         border_style="cyan",
@@ -166,6 +170,7 @@ def main():
                 original_prompt=config.prompt,
                 iteration=iteration,
                 previous_augmented_prompt=augmented_prompt,
+                image_type=config.image_type,
             )
             strategy = strategy_decision.strategy
             augmented_prompt = strategy_decision.augmented_prompt
@@ -197,6 +202,7 @@ def main():
                 prompt=config.prompt,
                 character_name=config.character,
                 model=config.judge_model,
+                image_type=config.image_type,
             )
         except Exception as e:
             console.print(f"[bold red]❌ Judge failed: {e}[/bold red]")

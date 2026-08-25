@@ -66,6 +66,7 @@ class RunConfig(BaseModel):
     dual_strategy: bool = False
     seed: int | None = None
     ref_transport: str = "files_api"
+    image_type: Literal["photo", "cartoon", "illustration"] = "photo"
     portr8_version: str = "0.1.0"
 
 class RunSummary(BaseModel):

@@ -1,16 +1,37 @@
 """portr8 strategy engine — decides edit vs regenerate and augments prompts."""
 
+from typing import Literal
 from lib.models import JudgeVerdict, StrategyDecision
 from rich.console import Console
 
 console = Console()
 
-# Photorealism cues to ALWAYS include (Lesson #3)
-PHOTOREALISM_CUES = (
-    "photorealistic, authentic skin texture with visible pores, "
-    "natural lighting, real-world imperfections, "
-    "shot on professional DSLR camera, 85mm portrait lens"
-)
+# Style cues by image_type (Lesson #3: cartoon is too easy, photo is the real challenge)
+STYLE_CUES: dict[str, str] = {
+    "photo": (
+        "photorealistic, authentic skin texture with visible pores, "
+        "natural lighting, real-world imperfections, "
+        "shot on professional DSLR camera, 85mm portrait lens"
+    ),
+    "cartoon": (
+        "high-quality cartoon illustration, consistent character design, "
+        "expressive features, clean linework, vibrant colors, "
+        "professional animation studio quality"
+    ),
+    "illustration": (
+        "detailed digital illustration, painterly style, "
+        "accurate character likeness in illustrated form, "
+        "professional concept art quality, consistent proportions"
+    ),
+}
+
+# Keep backward compat for tests
+PHOTOREALISM_CUES = STYLE_CUES["photo"]
+
+
+def get_style_cues(image_type: str = "photo") -> str:
+    """Get style-appropriate prompt cues for the given image type."""
+    return STYLE_CUES.get(image_type, STYLE_CUES["photo"])
 
 
 def decide_strategy(
@@ -18,6 +39,7 @@ def decide_strategy(
     original_prompt: str,
     iteration: int,
     previous_augmented_prompt: str | None = None,
+    image_type: str = "photo",
 ) -> StrategyDecision:
     """Decide whether to edit or regenerate, and build augmented prompt.
     
@@ -49,7 +71,8 @@ def decide_strategy(
     
     # Build augmented prompt
     augmented = _augment_prompt(
-        original_prompt, verdict, feedback_points, previous_augmented_prompt
+        original_prompt, verdict, feedback_points, previous_augmented_prompt,
+        image_type=image_type,
     )
     
     # Build rationale
@@ -73,6 +96,7 @@ def _augment_prompt(
     verdict: JudgeVerdict,
     feedback_points: list[str],
     previous_augmented: str | None,
+    image_type: str = "photo",
 ) -> str:
     """Build an augmented prompt incorporating judge feedback.
     
@@ -80,8 +104,8 @@ def _augment_prompt(
     """
     parts = [original_prompt.rstrip(".")]
     
-    # Always add photorealism cues
-    parts.append(PHOTOREALISM_CUES)
+    # Always add style-appropriate cues
+    parts.append(get_style_cues(image_type))
     
     # Add positive corrections based on resemblance feedback
     if verdict.resemblance_score < 7.0:
@@ -103,8 +127,8 @@ def _augment_prompt(
             "Ensure the scene, setting, and action precisely match the original description"
         )
     
-    # Anti-beautification reinforcement
-    if verdict.anti_beautification_flag:
+    # Anti-beautification reinforcement (only for photo — cartoon IS beautified by nature)
+    if verdict.anti_beautification_flag and image_type == "photo":
         parts.append(
             "Preserve authentic skin texture with visible pores, natural wrinkles, "
             "and real-world skin imperfections. The skin must look like a real photograph"

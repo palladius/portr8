@@ -17,17 +17,42 @@ console = Console()
 DEFAULT_JUDGE_MODEL = "gemini-3.5-flash"
 
 
-def build_judge_prompt(prompt: str, character_name: str) -> str:
+def build_judge_prompt(prompt: str, character_name: str, image_type: str = "photo") -> str:
     """Build the dual-axis judge prompt.
     
     CRITICAL DESIGN CONSTRAINTS (from empirical research):
-    - Anti-beautification penalty: AI smoothing/doll-face = resemblance ≤ 5.0
+    - Anti-beautification penalty: AI smoothing/doll-face = resemblance ≤ 5.0 (photo only)
     - Positive biometric analysis only (no negative constraints)
-    - Photorealism is checked explicitly
+    - Photorealism check adapts to image_type
     """
+    # Adjust photorealism instructions based on image type
+    if image_type == "photo":
+        photo_instructions = """## Photorealism Check
+Set is_photorealistic=true ONLY if the image could pass as a real photograph.
+Cartoon, illustration, painting, or heavily stylized = false.
+
+CRITICAL: If the face looks smoothed, beautified, or "doll-like" compared to
+the authentic reference photos, this is AI beautification. Mark
+anti_beautification_flag=true and cap resemblance_score at 5.0.
+Authentic skin texture with visible pores, natural lighting, and real-world
+imperfections are GOOD signs."""
+    elif image_type == "cartoon":
+        photo_instructions = """## Style Check
+This is a CARTOON image. Set is_photorealistic=false (this is expected and OK).
+Set anti_beautification_flag=false (smoothing is expected in cartoons).
+Instead, evaluate whether the cartoon style is consistent and high-quality.
+Focus resemblance scoring on: does the cartoon version capture the DISTINCTIVE
+features of the real person (face shape, hair style, eye color, unique traits)?"""
+    else:  # illustration
+        photo_instructions = """## Style Check
+This is an ILLUSTRATION. Set is_photorealistic=false (this is expected and OK).
+Set anti_beautification_flag=false (stylization is expected in illustrations).
+Focus resemblance scoring on: does the illustrated version capture the DISTINCTIVE
+features of the real person (face shape, hair style, eye color, unique traits)?"""
+
     return f"""You are an unsparing forensic biometric likeness AND scene accuracy judge.
 
-You are evaluating an AI-generated image of "{character_name}" against:
+You are evaluating an AI-generated {image_type} image of "{character_name}" against:
 1. Authentic reference photographs of {character_name} (provided as subsequent images)
 2. The original scene prompt: "{prompt}"
 
@@ -42,12 +67,6 @@ Scrutinize: facial bone structure, eye color and shape, nose bridge and tip,
 lip shape, hair texture/color/style, skin texture, distinct facial traits
 (moles, wrinkles, asymmetries), ear shape, jawline.
 
-CRITICAL: If the face looks smoothed, beautified, or "doll-like" compared to
-the authentic reference photos, this is AI beautification. Mark
-anti_beautification_flag=true and cap resemblance_score at 5.0.
-Authentic skin texture with visible pores, natural lighting, and real-world
-imperfections are GOOD signs.
-
 ## Axis 2: Adherence (adherence_score, 1.0-10.0)  
 Does the scene match the prompt? Evaluate:
 - Setting/environment accuracy
@@ -56,9 +75,7 @@ Does the scene match the prompt? Evaluate:
 - Lighting/mood/style match
 - Overall composition matches intent
 
-## Photorealism Check
-Set is_photorealistic=true ONLY if the image could pass as a real photograph.
-Cartoon, illustration, painting, or heavily stylized = false.
+{photo_instructions}
 
 Provide detailed rationales for both scores. Be brutally honest.
 Output strictly according to the requested JSON schema."""
@@ -71,6 +88,7 @@ def judge_image(
     prompt: str,
     character_name: str,
     model: str = DEFAULT_JUDGE_MODEL,
+    image_type: str = "photo",
 ) -> JudgeVerdict:
     """Judge a generated image on resemblance and adherence.
     
@@ -81,6 +99,7 @@ def judge_image(
         prompt: The original scene prompt
         character_name: Name of the character being evaluated
         model: Judge model to use (default: gemini-3.5-flash)
+        image_type: Type of image (photo/cartoon/illustration)
     
     Returns:
         JudgeVerdict with scores, rationales, and flags
@@ -92,7 +111,7 @@ def judge_image(
         contents.append(PILImage.open(ref_path))
     
     # Add the judge prompt
-    contents.append(build_judge_prompt(prompt, character_name))
+    contents.append(build_judge_prompt(prompt, character_name, image_type=image_type))
     
     console.print(f"  👨⚖️ Judging with [cyan]{model}[/cyan] (temp=0.2)...")
     

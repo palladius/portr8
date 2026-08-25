@@ -78,3 +78,5 @@ class RunSummary(BaseModel):
     converged: bool  # True if both scores >= target
     total_elapsed: float
     output_dir: str  # tilde-normalized path
+    best_image_path: str = ""  # path to best scored image
+    graph_path: str = ""  # path to convergence graph PNG

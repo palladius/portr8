@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] — 2026-08-25
+
+### 📊 Convergence Graphs & Run Index
+
+- 📊 `lib/grapher.py` — Matplotlib convergence graph per run (R/A scores, target line, best ⭐, color-coded bg)
+- 📊 `bin/index.py` — Deterministic run index generator (`just index` → `out/index.md`, `just index-csv` → CSV)
+- 📊 `RunSummary.best_image_path` + `graph_path` — no duplicate JSON, enrich existing summary
+- 🐛 Fix emoji □ rendering in Pillow overlay — `_strip_emoji()` helper, ASCII labels (YES/NO) instead
+- 📝 GEMINI.md: experimentation philosophy — "tokens are free, show don't tell"
+- ➕ `matplotlib>=3.8.0` dependency added
+
 ## [0.2.0] — 2026-08-25
 
 ### 🚀 Full Implementation — All 11 Tasks Complete (50 tests ✅)

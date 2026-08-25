@@ -267,6 +267,21 @@ def main():
         if best_path.exists():
             create_failure_overlay(best_path, best_record.verdict, best_record.iteration)
     
+    # Populate best_image_path
+    if best_record:
+        scored_stem = Path(best_record.image_path.replace("~", os.path.expanduser("~")))
+        scored_path = scored_stem.parent / f"{scored_stem.stem}_scored{scored_stem.suffix}"
+        summary.best_image_path = to_tilde_path(scored_path) if scored_path.exists() else best_record.image_path
+    
+    # Generate convergence graph
+    try:
+        from lib.grapher import generate_convergence_graph
+        graph_path = generate_convergence_graph(summary, output_dir / "convergence.png")
+        summary.graph_path = to_tilde_path(graph_path)
+        console.print(f"\n📊 Graph saved: [blue]{summary.graph_path}[/blue]")
+    except Exception as e:
+        console.print(f"\n[yellow]⚠️ Graph generation failed: {e}[/yellow]")
+    
     # Print final summary
     _print_summary(summary)
     

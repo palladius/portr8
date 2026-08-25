@@ -43,3 +43,11 @@ status:
 # Show version
 version:
     @cat VERSION
+
+# Generate run index from all out/*/summary.json
+index:
+    uv run ./bin/index.py
+
+# Generate run index as CSV
+index-csv:
+    uv run ./bin/index.py --format csv

@@ -57,9 +57,11 @@ def generate_index_md(runs: list[tuple[Path, RunSummary]], out_dir: Path) -> str
         graph_file = run_dir / "convergence.png"
         if graph_file.exists():
             links.append(f"[graph]({run_dir.name}/convergence.png)")
-        report_file = run_dir / "report.md"
+        report_file = run_dir / "README.md"
+        if not report_file.exists():
+            report_file = run_dir / "report.md"  # legacy fallback
         if report_file.exists():
-            links.append(f"[report]({run_dir.name}/report.md)")
+            links.append(f"[report]({run_dir.name}/{report_file.name})")
         scored = run_dir / f"iter_{s.best_iteration + 1:02d}_scored.png"
         if scored.exists():
             links.append(f"[best]({run_dir.name}/{scored.name})")

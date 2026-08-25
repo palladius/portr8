@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.1] — 2026-08-25
+
+### 📄 README.md + Version in Reports
+
+- 📄 Renamed per-run `report.md` → `README.md` for auto-rendering in GitHub/GitLab
+- 🏷️ Version and character name in report title: `# portr8 v0.4.1 — riccardo`
+- ⏰ Generation timestamp in report header
+- 🔙 Index generator: backward-compatible fallback (`README.md` → `report.md`)
+- ✅ Tests: assert `README.md` filename + version presence
+
 ## [0.4.0] — 2026-08-25
 
 ### 🔬 3-Axis Scoring + Floating Overlay + Per-Run Reports

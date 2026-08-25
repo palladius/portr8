@@ -293,7 +293,7 @@ def main():
     try:
         from lib.reporter import generate_report
         report_path = generate_report(summary, output_dir)
-        console.print(f"📄 Report saved: [blue]{to_tilde_path(report_path)}[/blue]")
+        console.print(f"📄 README saved: [blue]{to_tilde_path(report_path)}[/blue]")
     except Exception as e:
         console.print(f"[yellow]⚠️ Report generation failed: {e}[/yellow]")
     

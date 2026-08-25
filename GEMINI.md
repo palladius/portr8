@@ -108,3 +108,16 @@ Patterns adapted from [`~/git/gemini-tools/`](file:///usr/local/google/home/ricc
 - `find_golden_kate_candidate.py` → `bin/portr8.py` (spiritual successor)
 
 See `docs/SPECS.md` §"Lessons Learned" for the 13 empirical findings that shaped this codebase.
+
+## 🧪 Experimentation & Presentation Philosophy
+
+**Tokens are free. Don't ask, just do.**
+
+- Feel free to **try, experiment, and iterate** — API calls cost nothing to us.
+- Run `portr8` with different prompts, characters, image types, and targets to explore.
+- **Present the user with tangible, visual results** — images, score tables, comparison artifacts.
+  Don't show intermediate steps or ask "should I run this?". Just run it and present the output.
+- When showing results, always use the `_scored.png` images (with banners) not the raw ones.
+- Open output folders with `xdg-open` so the user can browse locally.
+- If a run fails or produces SCHIFO, that's useful data too — include it in the presentation!
+- Think like a DevRel demo: **show, don't tell**.

@@ -12,50 +12,60 @@ from lib.models import (
 def test_judge_verdict_labels():
     # CAPOLAVORO (>=8)
     v1 = JudgeVerdict(
-        resemblance_score=8.5,
+        facial_similarity=8.5,
+        scene_adaptation=7.0,
         adherence_score=9.0,
         is_photorealistic=True,
-        resemblance_rationale="Great",
+        facial_similarity_rationale="Great",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Perfect"
     )
     assert v1.verdict_label == "CAPOLAVORO 🏆"
 
     # BUONO (>=7)
     v2 = JudgeVerdict(
-        resemblance_score=7.0,
+        facial_similarity=7.0,
+        scene_adaptation=7.0,
         adherence_score=9.0,
         is_photorealistic=True,
-        resemblance_rationale="Good",
+        facial_similarity_rationale="Good",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Great"
     )
     assert v2.verdict_label == "BUONO 👍"
 
     # COSÌ-COSÌ (>=5)
     v3 = JudgeVerdict(
-        resemblance_score=9.0,
+        facial_similarity=9.0,
+        scene_adaptation=7.0,
         adherence_score=5.5,
         is_photorealistic=True,
-        resemblance_rationale="Awesome",
+        facial_similarity_rationale="Awesome",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Okay"
     )
     assert v3.verdict_label == "COSÌ-COSÌ 😐"
 
     # SCHIFO (<5)
     v4 = JudgeVerdict(
-        resemblance_score=4.9,
+        facial_similarity=4.9,
+        scene_adaptation=7.0,
         adherence_score=8.0,
         is_photorealistic=True,
-        resemblance_rationale="Bad",
+        facial_similarity_rationale="Bad",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Good"
     )
     assert v4.verdict_label == "SCHIFO 🤮"
 
 def test_judge_verdict_anti_beautification():
     v = JudgeVerdict(
-        resemblance_score=6.0,
+        facial_similarity=6.0,
+        scene_adaptation=7.0,
         adherence_score=6.0,
         is_photorealistic=True,
-        resemblance_rationale="Ok",
+        facial_similarity_rationale="Ok",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Ok",
         anti_beautification_flag=True
     )
@@ -64,38 +74,46 @@ def test_judge_verdict_anti_beautification():
 def test_score_validation():
     # Valid scores
     JudgeVerdict(
-        resemblance_score=0.0,
+        facial_similarity=0.0,
+        scene_adaptation=7.0,
         adherence_score=10.0,
         is_photorealistic=True,
-        resemblance_rationale="Ok",
+        facial_similarity_rationale="Ok",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Ok"
     )
 
     # Invalid scores
     with pytest.raises(ValidationError):
         JudgeVerdict(
-            resemblance_score=-0.1,
+            facial_similarity=-0.1,
+        scene_adaptation=7.0,
             adherence_score=5.0,
             is_photorealistic=True,
-            resemblance_rationale="Ok",
+            facial_similarity_rationale="Ok",
+        scene_adaptation_rationale="Good scene match",
             adherence_rationale="Ok"
         )
         
     with pytest.raises(ValidationError):
         JudgeVerdict(
-            resemblance_score=5.0,
+            facial_similarity=5.0,
+        scene_adaptation=7.0,
             adherence_score=10.1,
             is_photorealistic=True,
-            resemblance_rationale="Ok",
+            facial_similarity_rationale="Ok",
+        scene_adaptation_rationale="Good scene match",
             adherence_rationale="Ok"
         )
 
 def test_iteration_record_serialization():
     v = JudgeVerdict(
-        resemblance_score=8.0,
+        facial_similarity=8.0,
+        scene_adaptation=7.0,
         adherence_score=8.0,
         is_photorealistic=True,
-        resemblance_rationale="Good",
+        facial_similarity_rationale="Good",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Good"
     )
     sd = StrategyDecision(
@@ -125,7 +143,7 @@ def test_iteration_record_serialization():
     
     loaded_record = IterationRecord.model_validate_json(json_data)
     assert loaded_record.iteration == record.iteration
-    assert loaded_record.verdict.resemblance_score == 8.0
+    assert loaded_record.verdict.facial_similarity == 8.0
 
 def test_run_config_defaults():
     config = RunConfig(
@@ -157,7 +175,9 @@ def test_run_summary_converged():
         config=config,
         iterations=[],
         best_iteration=1,
-        best_resemblance=8.5,
+        best_facial_similarity=8.5,
+        best_scene_adaptation=7.0,
+        scene_adaptation=7.0,
         best_adherence=9.0,
         converged=True,
         total_elapsed=30.0,
@@ -170,7 +190,9 @@ def test_run_summary_converged():
         config=config,
         iterations=[],
         best_iteration=1,
-        best_resemblance=7.5,
+        best_facial_similarity=7.5,
+        best_scene_adaptation=7.0,
+        scene_adaptation=7.0,
         best_adherence=8.0,
         converged=False,
         total_elapsed=30.0,

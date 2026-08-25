@@ -78,7 +78,7 @@ def main():
     for i, record in enumerate(records):
         iteration = record.get("iteration", i + 1)
         verdict = record.get("verdict", {})
-        ai_r = verdict.get("resemblance_score", 0)
+        ai_r = verdict.get("facial_similarity", 0)
         ai_a = verdict.get("adherence_score", 0)
         label = verdict.get("verdict_label", "")
         img_path = record.get("image_path", "unknown")
@@ -106,7 +106,7 @@ def main():
             
             if h_r >= 0:
                 record.setdefault("human_eval", {})
-                record["human_eval"]["resemblance_score"] = min(10.0, max(0.0, h_r))
+                record["human_eval"]["facial_similarity"] = min(10.0, max(0.0, h_r))
                 record["human_eval"]["status"] = "RATED"
             if h_a >= 0:
                 record.setdefault("human_eval", {})
@@ -145,9 +145,9 @@ def _print_comparison(records: list[dict]) -> None:
     """Print AI vs Human comparison table."""
     table = Table(title="👤 vs 🤖 Score Comparison")
     table.add_column("Iter", style="cyan")
-    table.add_column("AI R", justify="right")
-    table.add_column("Human R", justify="right")
-    table.add_column("ΔR", justify="right")
+    table.add_column("AI F", justify="right")
+    table.add_column("Human F", justify="right")
+    table.add_column("ΔF", justify="right")
     table.add_column("AI A", justify="right")
     table.add_column("Human A", justify="right")
     table.add_column("ΔA", justify="right")
@@ -157,9 +157,9 @@ def _print_comparison(records: list[dict]) -> None:
         if human.get("status") != "RATED":
             continue
         
-        ai_r = r.get("verdict", {}).get("resemblance_score", 0)
+        ai_r = r.get("verdict", {}).get("facial_similarity", 0)
         ai_a = r.get("verdict", {}).get("adherence_score", 0)
-        h_r = human.get("resemblance_score", 0)
+        h_r = human.get("facial_similarity", 0)
         h_a = human.get("adherence_score", 0)
         
         dr = h_r - ai_r

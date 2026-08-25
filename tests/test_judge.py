@@ -24,8 +24,10 @@ def test_build_judge_prompt():
 def test_display_verdict():
     # 4. _display_verdict doesn't crash
     verdict = JudgeVerdict(
-        resemblance_score=8.5,
-        resemblance_rationale="Looks just like him.",
+        facial_similarity=8.5,
+        scene_adaptation=7.0,
+        facial_similarity_rationale="Looks just like him.",
+        scene_adaptation_rationale="Good scene match",
         adherence_score=9.0,
         adherence_rationale="Scene matches prompt perfectly.",
         is_photorealistic=True,
@@ -43,14 +45,16 @@ def test_judge_image_importable():
 def test_judge_verdict_model():
     # 6. JudgeVerdict model works with the schema
     verdict = JudgeVerdict(
-        resemblance_score=4.0,
-        resemblance_rationale="Doesn't look like him.",
+        facial_similarity=4.0,
+        scene_adaptation=7.0,
+        facial_similarity_rationale="Doesn't look like him.",
+        scene_adaptation_rationale="Good scene match",
         adherence_score=5.0,
         adherence_rationale="Missing the moon.",
         is_photorealistic=False,
         anti_beautification_flag=True,
     )
     
-    assert verdict.resemblance_score == 4.0
+    assert verdict.facial_similarity == 4.0
     assert verdict.verdict_label is not None
     assert "SCHIFO" in verdict.verdict_label # Since score < 5

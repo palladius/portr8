@@ -10,18 +10,20 @@ class CharacterMetadata(BaseModel):
     synthetic: bool = False  # True for AI-generated test characters
 
 class JudgeVerdict(BaseModel):
-    resemblance_score: float = Field(..., ge=0.0, le=10.0, description="How similar the generated person looks to the reference photos")
+    facial_similarity: float = Field(..., ge=0.0, le=10.0, description="How similar the face looks to reference photos (identity only, NOT clothing)")
+    scene_adaptation: float = Field(..., ge=0.0, le=10.0, description="How well clothing/pose/setting match the PROMPT (not the reference photos)")
     adherence_score: float = Field(..., ge=0.0, le=10.0, description="How well the scene matches the prompt")
     is_photorealistic: bool = Field(..., description="True if the image looks photorealistic, not cartoon/illustration")
-    resemblance_rationale: str = Field(..., description="Why this resemblance score was given")
+    facial_similarity_rationale: str = Field(..., description="Why this facial similarity score was given")
+    scene_adaptation_rationale: str = Field(..., description="Why this scene adaptation score was given")
     adherence_rationale: str = Field(..., description="Why this adherence score was given")
     anti_beautification_flag: bool = Field(default=False, description="True if AI smoothing/beautification was detected")
     verdict_label: str = Field(default="", description="Italian label: CAPOLAVORO/BUONO/COSÌ-COSÌ/SCHIFO")
     
     @model_validator(mode='after')
     def set_verdict_label(self) -> 'JudgeVerdict':
-        """Set Italian verdict label based on minimum of both scores."""
-        min_score = min(self.resemblance_score, self.adherence_score)
+        """Set Italian verdict label based on minimum of facial_similarity and adherence."""
+        min_score = min(self.facial_similarity, self.adherence_score)
         if min_score >= 8.0:
             self.verdict_label = "CAPOLAVORO 🏆"
         elif min_score >= 7.0:
@@ -73,9 +75,10 @@ class RunSummary(BaseModel):
     config: RunConfig
     iterations: list[IterationRecord]
     best_iteration: int  # index of best iteration
-    best_resemblance: float
+    best_facial_similarity: float
+    best_scene_adaptation: float
     best_adherence: float
-    converged: bool  # True if both scores >= target
+    converged: bool  # True if facial_similarity & adherence >= target AND scene_adaptation >= 5.0
     total_elapsed: float
     output_dir: str  # tilde-normalized path
     best_image_path: str = ""  # path to best scored image

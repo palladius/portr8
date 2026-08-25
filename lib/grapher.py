@@ -8,10 +8,11 @@ def generate_convergence_graph(summary: RunSummary, output_path: Path | None = N
     """Generate a convergence graph PNG showing score progression across iterations.
     
     Shows:
-    - Resemblance scores (blue line)
-    - Adherence scores (green line)  
+    - Facial similarity scores (blue line)
+    - Adherence scores (green line)
+    - Scene adaptation scores (orange line)
     - Target score (red dashed horizontal line)
-    - Min score per iteration (gray dotted)
+    - Scene floor at 5.0 (orange dotted)
     - Color-coded background: green if converged, red if not
     
     Args:
@@ -35,9 +36,10 @@ def generate_convergence_graph(summary: RunSummary, output_path: Path | None = N
         raise ValueError("No iterations to graph")
     
     xs = [it.iteration + 1 for it in iterations]
-    r_scores = [it.verdict.resemblance_score for it in iterations]
+    f_scores = [it.verdict.facial_similarity for it in iterations]
     a_scores = [it.verdict.adherence_score for it in iterations]
-    min_scores = [min(r, a) for r, a in zip(r_scores, a_scores)]
+    s_scores = [it.verdict.scene_adaptation for it in iterations]
+    min_scores = [min(f, a) for f, a in zip(f_scores, a_scores)]
     target = summary.config.target_score
     
     # Create figure
@@ -48,28 +50,35 @@ def generate_convergence_graph(summary: RunSummary, output_path: Path | None = N
     ax.set_facecolor(bg_color)
     
     # Plot scores
-    ax.plot(xs, r_scores, "o-", color="#1565c0", linewidth=2.5, markersize=8, 
-            label=f"Resemblance (best: {summary.best_resemblance:.1f})", zorder=3)
+    ax.plot(xs, f_scores, "o-", color="#1565c0", linewidth=2.5, markersize=8, 
+            label=f"Facial (best: {summary.best_facial_similarity:.1f})", zorder=3)
     ax.plot(xs, a_scores, "s-", color="#2e7d32", linewidth=2.5, markersize=8,
             label=f"Adherence (best: {max(a_scores):.1f})", zorder=3)
+    ax.plot(xs, s_scores, "v-", color="#e65100", linewidth=2, markersize=7,
+            label=f"Scene (best: {summary.best_scene_adaptation:.1f})", zorder=3)
     ax.plot(xs, min_scores, ":", color="#9e9e9e", linewidth=1.5, alpha=0.7,
-            label="Min(R,A)", zorder=2)
+            label="Min(F,A)", zorder=2)
     
     # Target line
     ax.axhline(y=target, color="#d32f2f", linestyle="--", linewidth=2, 
                label=f"Target: {target:.1f}", zorder=1)
+    # Scene adaptation floor
+    ax.axhline(y=5.0, color="#e65100", linestyle=":", linewidth=1, alpha=0.5,
+               label="Scene floor: 5.0", zorder=1)
     
     # Annotate each point with score value
-    for i, (x, r, a) in enumerate(zip(xs, r_scores, a_scores)):
-        ax.annotate(f"{r:.1f}", (x, r), textcoords="offset points", 
+    for i, (x, f, a, s) in enumerate(zip(xs, f_scores, a_scores, s_scores)):
+        ax.annotate(f"{f:.1f}", (x, f), textcoords="offset points", 
                     xytext=(0, 10), ha="center", fontsize=9, color="#1565c0", fontweight="bold")
         ax.annotate(f"{a:.1f}", (x, a), textcoords="offset points",
                     xytext=(0, -15), ha="center", fontsize=9, color="#2e7d32", fontweight="bold")
+        ax.annotate(f"{s:.1f}", (x, s), textcoords="offset points",
+                    xytext=(12, 0), ha="left", fontsize=8, color="#e65100")
     
     # Mark best iteration with a star
     best_idx = summary.best_iteration
-    if best_idx < len(r_scores):
-        ax.plot(best_idx + 1, r_scores[best_idx], "*", color="#ff6f00", markersize=20, zorder=4)
+    if best_idx < len(f_scores):
+        ax.plot(best_idx + 1, f_scores[best_idx], "*", color="#ff6f00", markersize=20, zorder=4)
     
     # Styling
     status = "CONVERGED" if summary.converged else "FAILED"
@@ -84,7 +93,7 @@ def generate_convergence_graph(summary: RunSummary, output_path: Path | None = N
     ax.set_ylim(0, 10.5)
     ax.set_xlim(0.5, len(xs) + 0.5)
     ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-    ax.legend(loc="lower right", fontsize=9, framealpha=0.9)
+    ax.legend(loc="lower right", fontsize=8, framealpha=0.9)
     ax.grid(True, alpha=0.3)
     
     plt.tight_layout()

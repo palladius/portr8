@@ -10,7 +10,7 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
     
     The report includes:
     - Run configuration
-    - Score progression table
+    - Score progression table (3-axis: Facial, Scene, Adherence)
     - Best/worst iterations
     - Convergence status
     - Embedded images (relative paths)
@@ -25,9 +25,9 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
     
     # Status banner
     if summary.converged:
-        lines.append(f"> \u2705 **CONVERGED** — Target {summary.config.target_score}/10 achieved!")
+        lines.append(f"> **CONVERGED** — Target {summary.config.target_score}/10 achieved!")
     else:
-        lines.append(f"> \u274c **FAILED** — Did not reach target {summary.config.target_score}/10")
+        lines.append(f"> **FAILED** — Did not reach target {summary.config.target_score}/10")
     lines.append(f"")
     
     # Configuration
@@ -39,26 +39,32 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
     lines.append(f"| Character | {summary.config.character} |")
     lines.append(f"| Target Score | {summary.config.target_score}/10 |")
     lines.append(f"| Max Iterations | {summary.config.max_iterations} |")
+    lines.append(f"| Image Type | {summary.config.image_type} |")
     lines.append(f"| Image Model | {summary.config.image_model} |")
     lines.append(f"| Judge Model | {summary.config.judge_model} |")
-    lines.append(f"| Dual Strategy | {summary.config.dual_strategy} |")
     lines.append(f"| portr8 Version | {summary.config.portr8_version} |")
     lines.append(f"")
     
     # Score Progression
     lines.append(f"## Score Progression")
     lines.append(f"")
-    lines.append(f"| Iter | Resemblance | Adherence | Strategy | Verdict | Time |")
-    lines.append(f"|:---:|:---:|:---:|:---|:---|:---:|")
+    lines.append(f"| Iter | Facial | Scene | Adherence | Strategy | Verdict | Time |")
+    lines.append(f"|:---:|:---:|:---:|:---:|:---|:---|:---:|")
     for r in summary.iterations:
-        r_emoji = "✅" if r.verdict.resemblance_score >= summary.config.target_score else "❌"
-        a_emoji = "✅" if r.verdict.adherence_score >= summary.config.target_score else "❌"
         lines.append(
-            f"| {r.iteration} | {r_emoji} {r.verdict.resemblance_score:.1f} "
-            f"| {a_emoji} {r.verdict.adherence_score:.1f} "
-            f"| {r.strategy} | {r.verdict.verdict_label} | {r.elapsed_seconds:.1f}s |"
+            f"| {r.iteration} | {r.verdict.facial_similarity:.1f} "
+            f"| {r.verdict.scene_adaptation:.1f} "
+            f"| {r.verdict.adherence_score:.1f} "
+            f"| {r.strategy} | {_strip_emoji(r.verdict.verdict_label)} | {r.elapsed_seconds:.1f}s |"
         )
     lines.append(f"")
+    
+    # Convergence graph (if exists)
+    if summary.graph_path:
+        lines.append(f"## Convergence Graph")
+        lines.append(f"")
+        lines.append(f"![Convergence](convergence.png)")
+        lines.append(f"")
     
     # Best Iteration
     lines.append(f"## Best Iteration")
@@ -66,18 +72,21 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
     best_idx = summary.best_iteration
     if summary.iterations:
         best = summary.iterations[best_idx]
-        lines.append(f"**Iteration {best.iteration}** — {best.verdict.verdict_label}")
-        lines.append(f"- Resemblance: {best.verdict.resemblance_score:.1f}/10")
+        lines.append(f"**Iteration {best.iteration}** — {_strip_emoji(best.verdict.verdict_label)}")
+        lines.append(f"- Facial similarity: {best.verdict.facial_similarity:.1f}/10")
+        lines.append(f"- Scene adaptation: {best.verdict.scene_adaptation:.1f}/10")
         lines.append(f"- Adherence: {best.verdict.adherence_score:.1f}/10")
         lines.append(f"- Photorealistic: {'Yes' if best.verdict.is_photorealistic else 'No'}")
         lines.append(f"")
         # Embed best image if exists
-        img_name = f"iter_{best.iteration:02d}.png"
         scored_name = f"iter_{best.iteration:02d}_scored.png"
         lines.append(f"![Best iteration]({scored_name})")
         lines.append(f"")
-        lines.append(f"### Resemblance Rationale")
-        lines.append(f"{best.verdict.resemblance_rationale}")
+        lines.append(f"### Facial Similarity Rationale")
+        lines.append(f"{best.verdict.facial_similarity_rationale}")
+        lines.append(f"")
+        lines.append(f"### Scene Adaptation Rationale")
+        lines.append(f"{best.verdict.scene_adaptation_rationale}")
         lines.append(f"")
         lines.append(f"### Adherence Rationale")
         lines.append(f"{best.verdict.adherence_rationale}")
@@ -88,7 +97,8 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
     lines.append(f"")
     lines.append(f"- Total iterations: {len(summary.iterations)}")
     lines.append(f"- Total time: {summary.total_elapsed:.1f}s")
-    lines.append(f"- Best resemblance: {summary.best_resemblance:.1f}/10")
+    lines.append(f"- Best facial similarity: {summary.best_facial_similarity:.1f}/10")
+    lines.append(f"- Best scene adaptation: {summary.best_scene_adaptation:.1f}/10")
     lines.append(f"- Best adherence: {summary.best_adherence:.1f}/10")
     lines.append(f"- Output directory: `{to_tilde_path(summary.output_dir)}`")
     lines.append(f"")
@@ -105,3 +115,14 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
     
     report_path.write_text("\n".join(lines))
     return report_path
+
+
+def _strip_emoji(text: str) -> str:
+    """Strip emoji for markdown rendering."""
+    import re
+    emoji_pattern = re.compile(
+        "[\U0001F300-\U0001F9FF\U00002702-\U000027B0\U0000FE00-\U0000FE0F"
+        "\U0000200D\U00002600-\U000026FF\U0000231A-\U0000231B\U00002B50\U0000274C\U00002705]+",
+        flags=re.UNICODE,
+    )
+    return emoji_pattern.sub("", text).strip()

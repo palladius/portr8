@@ -1,4 +1,4 @@
-"""portr8 score overlay — stamps score banners on generated images."""
+"""portr8 score overlay — stamps floating score banners on generated images."""
 
 import re
 from pathlib import Path
@@ -46,14 +46,13 @@ def create_score_overlay(
     iteration: int,
     output_path: Path | None = None,
 ) -> Path:
-    """Create a copy of the image with a score banner overlay.
+    """Create a copy of the image with a floating score banner overlay.
     
-    The banner shows:
-    - Iteration number
-    - Resemblance and adherence scores
-    - Italian verdict label
-    - Photorealism status
-    - Color-coded by verdict (green/blue/amber/red)
+    The banner is drawn ON TOP of the image at bottom center, semi-transparent.
+    Output image has the SAME dimensions as the input (no size change).
+    
+    Banner text is minimal: #N F=X.X A=X.X S=X.X
+    No emoji. No verdict label. Just the 3 scores.
     
     Args:
         image_path: Path to the source image
@@ -67,46 +66,58 @@ def create_score_overlay(
     if output_path is None:
         output_path = image_path.parent / f"{image_path.stem}_scored{image_path.suffix}"
     
-    img = PILImage.open(image_path)
+    img = PILImage.open(image_path).convert("RGBA")
     width, height = img.size
     
-    # Create banner
-    banner_height = max(60, height // 12)  # ~8% of image height, min 60px
-    banner = PILImage.new('RGB', (width, banner_height), get_verdict_color(verdict.verdict_label))
-    draw = ImageDraw.Draw(banner)
-    
-    # Build banner text (NO EMOJI — Pillow/DejaVu can't render them!)
-    photo_str = "YES" if verdict.is_photorealistic else "NO"
-    beautify_str = " BEAUTIFIED!" if verdict.anti_beautification_flag else ""
-    # Strip emoji from verdict label for Pillow rendering
-    clean_verdict = _strip_emoji(verdict.verdict_label)
+    # Build minimal banner text: #N F=X.X A=X.X S=X.X
     banner_text = (
-        f"Iter {iteration} | "
-        f"R:{verdict.resemblance_score:.1f} A:{verdict.adherence_score:.1f} | "
-        f"{clean_verdict} | "
-        f"Photo:{photo_str}{beautify_str}"
+        f"#{iteration} "
+        f"F={verdict.facial_similarity:.1f} "
+        f"A={verdict.adherence_score:.1f} "
+        f"S={verdict.scene_adaptation:.1f}"
     )
     
-    # Use default font (no external font dependency)
+    # Load font
+    banner_height = max(40, height // 20)  # ~5% of image height, min 40px
+    font_size = banner_height // 2
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", banner_height // 3)
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
     except (IOError, OSError):
         font = ImageFont.load_default()
     
-    # Center text in banner
-    bbox = draw.textbbox((0, 0), banner_text, font=font)
+    # Measure text
+    temp_draw = ImageDraw.Draw(img)
+    bbox = temp_draw.textbbox((0, 0), banner_text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-    text_x = max(10, (width - text_width) // 2)
-    text_y = (banner_height - text_height) // 2
-    draw.text((text_x, text_y), banner_text, fill=(255, 255, 255), font=font)
     
-    # Composite: original image + banner at bottom
-    composite = PILImage.new('RGB', (width, height + banner_height))
-    composite.paste(img, (0, 0))
-    composite.paste(banner, (0, height))
+    # Create semi-transparent overlay
+    overlay = PILImage.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
     
-    composite.save(output_path)
+    # Draw semi-transparent dark rectangle at bottom center
+    padding_x = 16
+    padding_y = 8
+    rect_width = text_width + 2 * padding_x
+    rect_height = text_height + 2 * padding_y
+    rect_x = (width - rect_width) // 2
+    rect_y = height - rect_height - 12  # 12px from bottom edge
+    
+    draw.rectangle(
+        [(rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height)],
+        fill=(0, 0, 0, 153),  # black at 60% opacity
+    )
+    
+    # Draw text centered in rectangle
+    text_x = rect_x + padding_x
+    text_y = rect_y + padding_y
+    draw.text((text_x, text_y), banner_text, fill=(255, 255, 255, 255), font=font)
+    
+    # Composite overlay onto image
+    composite = PILImage.alpha_composite(img, overlay)
+    
+    # Save as RGB (PNG with alpha or standard)
+    composite.convert("RGB").save(output_path)
     return output_path
 
 
@@ -116,43 +127,57 @@ def create_failure_overlay(
     iteration: int,
     output_path: Path | None = None,
 ) -> Path:
-    """Create a red-bordered failure overlay for convergence failures.
+    """Create a floating red failure overlay.
     
-    Similar to score overlay but with a thick red border and ':failure' text.
+    Same dimensions as input. Red semi-transparent banner at bottom.
+    Text: #N FAIL F=X.X A=X.X S=X.X
     """
     if output_path is None:
         output_path = image_path.parent / f"{image_path.stem}_failure{image_path.suffix}"
     
-    img = PILImage.open(image_path)
+    img = PILImage.open(image_path).convert("RGBA")
     width, height = img.size
     
-    border = 8
-    banner_height = max(80, height // 10)
-    
-    # Red banner
-    banner = PILImage.new('RGB', (width + 2*border, banner_height), (200, 0, 0))
-    draw = ImageDraw.Draw(banner)
-    
+    # Minimal failure text
     banner_text = (
-        f":failure | Iter {iteration} | "
-        f"R:{verdict.resemblance_score:.1f} A:{verdict.adherence_score:.1f} | "
-        f"{_strip_emoji(verdict.verdict_label)}"
+        f"#{iteration} FAIL "
+        f"F={verdict.facial_similarity:.1f} "
+        f"A={verdict.adherence_score:.1f} "
+        f"S={verdict.scene_adaptation:.1f}"
     )
     
+    banner_height = max(40, height // 20)
+    font_size = banner_height // 2
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", banner_height // 3)
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
     except (IOError, OSError):
         font = ImageFont.load_default()
     
-    bbox = draw.textbbox((0, 0), banner_text, font=font)
-    text_x = max(10, (width + 2*border - (bbox[2] - bbox[0])) // 2)
-    text_y = (banner_height - (bbox[3] - bbox[1])) // 2
-    draw.text((text_x, text_y), banner_text, fill=(255, 255, 255), font=font)
+    temp_draw = ImageDraw.Draw(img)
+    bbox = temp_draw.textbbox((0, 0), banner_text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
     
-    # Red-bordered composite
-    composite = PILImage.new('RGB', (width + 2*border, height + 2*border + banner_height), (200, 0, 0))
-    composite.paste(img, (border, border))
-    composite.paste(banner, (0, height + 2*border))
+    overlay = PILImage.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
     
-    composite.save(output_path)
+    padding_x = 16
+    padding_y = 8
+    rect_width = text_width + 2 * padding_x
+    rect_height = text_height + 2 * padding_y
+    rect_x = (width - rect_width) // 2
+    rect_y = height - rect_height - 12
+    
+    # Red semi-transparent background
+    draw.rectangle(
+        [(rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height)],
+        fill=(200, 0, 0, 178),  # red at 70% opacity
+    )
+    
+    text_x = rect_x + padding_x
+    text_y = rect_y + padding_y
+    draw.text((text_x, text_y), banner_text, fill=(255, 255, 255, 255), font=font)
+    
+    composite = PILImage.alpha_composite(img, overlay)
+    composite.convert("RGB").save(output_path)
     return output_path

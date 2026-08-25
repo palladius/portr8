@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] — 2026-08-25
+
+### 🔬 3-Axis Scoring + Floating Overlay + Per-Run Reports
+
+**BREAKING**: `resemblance_score` → `facial_similarity` + new `scene_adaptation` axis.
+
+- 🔬 Split resemblance into **facial_similarity** (face identity only, NOT clothing) + **scene_adaptation** (clothing/pose match PROMPT)
+- 🎯 New convergence rule: `facial_similarity >= target AND adherence >= target AND scene_adaptation >= 5.0`
+- 👔 Strategist: regenerate when scene_adaptation < 5.0, guide "wear scene-appropriate clothing"
+- 👨‍⚖️ Judge prompt: 3-axis evaluation, prompt overrides for "without beard/glasses" are ground truth
+- 🖼️ Overlay redesigned: floating semi-transparent banner ON the image (same dimensions), minimal text `#N F=X.X A=X.X S=X.X`
+- 📊 Grapher: 3 lines (blue=Facial, green=Adherence, orange=Scene) + scene floor line at 5.0
+- 📄 Per-run `report.md`: auto-generated in each output folder with config, score table, images, rationales
+- 📋 Reporter wired into main CLI loop (generates report.md after each run)
+- 📊 Index updated: Best F / Best S / Best A columns, report.md links
+- ✅ 50 tests passing
+
 ## [0.3.0] — 2026-08-25
 
 ### 📊 Convergence Graphs & Run Index

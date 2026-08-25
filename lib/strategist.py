@@ -44,10 +44,11 @@ def decide_strategy(
     """Decide whether to edit or regenerate, and build augmented prompt.
     
     Strategy logic:
-    - If resemblance < 5.0: REGENERATE (too far off, editing won't fix it)
-    - If resemblance >= 5.0 and adherence < 5.0: REGENERATE (scene is wrong)
+    - If facial_similarity < 5.0: REGENERATE (face too far off)
+    - If scene_adaptation < 5.0: REGENERATE (clothing/pose wrong for scene)
+    - If adherence < 5.0: REGENERATE (scene is wrong)
     - If anti_beautification_flag: REGENERATE (AI smoothing is structural)
-    - If resemblance >= 5.0 and adherence >= 5.0: EDIT (close enough to refine)
+    - Otherwise: EDIT (close enough to refine)
     - If iteration == 0: always REGENERATE (no previous image to edit)
     """
     feedback_points = []
@@ -59,15 +60,18 @@ def decide_strategy(
     elif verdict.anti_beautification_flag:
         strategy = "regenerate"
         feedback_points.append("AI beautification detected — regenerating to avoid structural smoothing")
-    elif verdict.resemblance_score < 5.0:
+    elif verdict.facial_similarity < 5.0:
         strategy = "regenerate"
-        feedback_points.append(f"Resemblance too low ({verdict.resemblance_score:.1f}) — regenerating from scratch")
+        feedback_points.append(f"Facial similarity too low ({verdict.facial_similarity:.1f}) — regenerating from scratch")
+    elif verdict.scene_adaptation < 5.0:
+        strategy = "regenerate"
+        feedback_points.append(f"Scene adaptation too low ({verdict.scene_adaptation:.1f}) — clothing/pose doesn't match scene, regenerating")
     elif verdict.adherence_score < 5.0:
         strategy = "regenerate"
         feedback_points.append(f"Adherence too low ({verdict.adherence_score:.1f}) — scene needs full redo")
     else:
         strategy = "edit"
-        feedback_points.append(f"Scores are workable (R:{verdict.resemblance_score:.1f} A:{verdict.adherence_score:.1f}) — refining via edit")
+        feedback_points.append(f"Scores are workable (F:{verdict.facial_similarity:.1f} S:{verdict.scene_adaptation:.1f} A:{verdict.adherence_score:.1f}) — refining via edit")
     
     # Build augmented prompt
     augmented = _augment_prompt(
@@ -77,8 +81,6 @@ def decide_strategy(
     
     # Build rationale
     rationale = f"Strategy: {strategy}. " + "; ".join(feedback_points)
-    
-    # The models Literal asks for regenerate/edit. So we need to make sure strategy is assigned nicely
     
     decision = StrategyDecision(
         strategy=strategy, # type: ignore
@@ -107,18 +109,25 @@ def _augment_prompt(
     # Always add style-appropriate cues
     parts.append(get_style_cues(image_type))
     
-    # Add positive corrections based on resemblance feedback
-    if verdict.resemblance_score < 7.0:
+    # Add positive corrections based on facial similarity feedback
+    if verdict.facial_similarity < 7.0:
         # Extract useful details from rationale for positive reinforcement
         parts.append(
             "Maintain the exact facial bone structure, eye color, nose shape, "
             "and distinctive features of the person in the reference photos"
         )
     
-    if verdict.resemblance_score < 5.0:
+    if verdict.facial_similarity < 5.0:
         parts.append(
             "The generated person must be an exact photographic match to the reference photos, "
             "preserving every unique facial feature, wrinkle, and skin imperfection"
+        )
+    
+    # Scene adaptation: clothing should match the scene, not reference photos
+    if verdict.scene_adaptation < 5.0:
+        parts.append(
+            "The person should wear clothing and accessories appropriate for the described scene. "
+            "Use reference photos for FACIAL IDENTITY ONLY, not for clothing or accessories"
         )
     
     # Add positive corrections based on adherence feedback

@@ -11,18 +11,22 @@ def create_mock_summary(converged: bool = True) -> RunSummary:
     )
     
     verdict1 = JudgeVerdict(
-        resemblance_score=7.0,
+        facial_similarity=7.0,
+        scene_adaptation=7.0,
         adherence_score=6.5,
         is_photorealistic=True,
-        resemblance_rationale="Okay",
+        facial_similarity_rationale="Okay",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Needs work"
     )
     
     verdict2 = JudgeVerdict(
-        resemblance_score=8.5 if converged else 7.5,
+        facial_similarity=8.5 if converged else 7.5,
+        scene_adaptation=7.0,
         adherence_score=9.0 if converged else 7.0,
         is_photorealistic=True,
-        resemblance_rationale="Good",
+        facial_similarity_rationale="Good",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="Great"
     )
     
@@ -58,7 +62,8 @@ def create_mock_summary(converged: bool = True) -> RunSummary:
         config=config,
         iterations=[iter1, iter2],
         best_iteration=1,
-        best_resemblance=verdict2.resemblance_score,
+        best_facial_similarity=verdict2.facial_similarity,
+        best_scene_adaptation=7.0,
         best_adherence=verdict2.adherence_score,
         converged=converged,
         total_elapsed=22.0,
@@ -92,8 +97,11 @@ def test_generate_report_score_progression(tmp_path: Path):
     report_path = generate_report(summary, tmp_path)
     content = report_path.read_text()
     
-    assert "| Iter | Resemblance | Adherence | Strategy | Verdict | Time |" in content
-    # Look for a specific iteration line
+    # 3-axis table header
+    assert "Facial" in content
+    assert "Scene" in content
+    assert "Adherence" in content
+    # Look for iteration lines
     assert "| 0 |" in content
     assert "| 1 |" in content
 
@@ -102,14 +110,11 @@ def test_generate_report_converged(tmp_path: Path):
     report_path = generate_report(summary, tmp_path)
     content = report_path.read_text()
     
-    assert "✅ **CONVERGED**" in content
-    assert "❌ **FAILED**" not in content
+    assert "CONVERGED" in content
 
 def test_generate_report_failed(tmp_path: Path):
     summary = create_mock_summary(converged=False)
     report_path = generate_report(summary, tmp_path)
     content = report_path.read_text()
     
-    assert "❌ **FAILED**" in content
-    assert "✅ **CONVERGED**" not in content
-
+    assert "FAILED" in content

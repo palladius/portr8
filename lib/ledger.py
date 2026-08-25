@@ -36,16 +36,17 @@ class Ledger:
         return records
     
     def best_iteration(self) -> IterationRecord | None:
-        """Return the record with the highest minimum(resemblance, adherence)."""
+        """Return the record with the highest minimum(facial_similarity, adherence)."""
         if not self.records:
             return None
-        return max(self.records, key=lambda r: min(r.verdict.resemblance_score, r.verdict.adherence_score))
+        return max(self.records, key=lambda r: min(r.verdict.facial_similarity, r.verdict.adherence_score))
     
     def is_converged(self, target_score: float = 8.0) -> bool:
-        """Check if ANY iteration has both scores >= target."""
+        """Check if ANY iteration has facial_similarity & adherence >= target AND scene_adaptation >= 5.0."""
         return any(
-            r.verdict.resemblance_score >= target_score and 
-            r.verdict.adherence_score >= target_score
+            r.verdict.facial_similarity >= target_score and 
+            r.verdict.adherence_score >= target_score and
+            r.verdict.scene_adaptation >= 5.0
             for r in self.records
         )
     
@@ -57,7 +58,8 @@ class Ledger:
             config=config,
             iterations=self.records,
             best_iteration=best_idx,
-            best_resemblance=best.verdict.resemblance_score if best else 0.0,
+            best_facial_similarity=best.verdict.facial_similarity if best else 0.0,
+            best_scene_adaptation=best.verdict.scene_adaptation if best else 0.0,
             best_adherence=best.verdict.adherence_score if best else 0.0,
             converged=self.is_converged(config.target_score),
             total_elapsed=sum(r.elapsed_seconds for r in self.records),

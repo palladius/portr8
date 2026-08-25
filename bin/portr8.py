@@ -208,10 +208,12 @@ def main():
             console.print(f"[bold red]❌ Judge failed: {e}[/bold red]")
             # Create a minimal verdict so we can continue
             verdict = JudgeVerdict(
-                resemblance_score=0.0,
+                facial_similarity=0.0,
+                scene_adaptation=0.0,
                 adherence_score=0.0,
                 is_photorealistic=False,
-                resemblance_rationale=f"Judge error: {e}",
+                facial_similarity_rationale=f"Judge error: {e}",
+                scene_adaptation_rationale=f"Judge error: {e}",
                 adherence_rationale=f"Judge error: {e}",
             )
         
@@ -241,17 +243,22 @@ def main():
         )
         ledger.append(record)
         
-        # Check convergence
-        min_score = min(verdict.resemblance_score, verdict.adherence_score)
-        if min_score >= config.target_score:
-            console.print(f"\n[bold green]🏆 CONVERGED! Both scores ≥ {config.target_score}![/bold green]")
-            console.print(f"   Resemblance: {verdict.resemblance_score:.1f}")
+        # Check convergence: facial_similarity & adherence >= target, scene_adaptation >= 5.0
+        converged = (
+            verdict.facial_similarity >= config.target_score
+            and verdict.adherence_score >= config.target_score
+            and verdict.scene_adaptation >= 5.0
+        )
+        if converged:
+            console.print(f"\n[bold green]🏆 CONVERGED![/bold green]")
+            console.print(f"   Facial similarity: {verdict.facial_similarity:.1f}")
+            console.print(f"   Scene adaptation: {verdict.scene_adaptation:.1f}")
             console.print(f"   Adherence: {verdict.adherence_score:.1f}")
             console.print(f"   Verdict: {verdict.verdict_label}")
             break
         else:
             remaining = config.max_iterations - iteration - 1
-            console.print(f"\n  ⏳ Not converged yet (min={min_score:.1f} < {config.target_score}). {remaining} iterations remaining.")
+            console.print(f"\n  ⏳ Not converged (F:{verdict.facial_similarity:.1f} S:{verdict.scene_adaptation:.1f} A:{verdict.adherence_score:.1f}). {remaining} left.")
         
         previous_image_path = image_path
     
@@ -282,6 +289,14 @@ def main():
     except Exception as e:
         console.print(f"\n[yellow]⚠️ Graph generation failed: {e}[/yellow]")
     
+    # Generate per-run report
+    try:
+        from lib.reporter import generate_report
+        report_path = generate_report(summary, output_dir)
+        console.print(f"📄 Report saved: [blue]{to_tilde_path(report_path)}[/blue]")
+    except Exception as e:
+        console.print(f"[yellow]⚠️ Report generation failed: {e}[/yellow]")
+    
     # Print final summary
     _print_summary(summary)
     
@@ -303,18 +318,21 @@ def _print_summary(summary) -> None:
     """Print a rich summary table."""
     table = Table(title="🎯 portr8 Run Summary")
     table.add_column("Iter", style="cyan")
-    table.add_column("Resemblance", justify="right")
+    table.add_column("Facial", justify="right")
+    table.add_column("Scene", justify="right")
     table.add_column("Adherence", justify="right")
     table.add_column("Strategy")
     table.add_column("Verdict")
     table.add_column("Time", justify="right")
     
     for r in summary.iterations:
-        r_style = "green" if r.verdict.resemblance_score >= 8 else "yellow" if r.verdict.resemblance_score >= 5 else "red"
+        f_style = "green" if r.verdict.facial_similarity >= 8 else "yellow" if r.verdict.facial_similarity >= 5 else "red"
+        s_style = "green" if r.verdict.scene_adaptation >= 8 else "yellow" if r.verdict.scene_adaptation >= 5 else "red"
         a_style = "green" if r.verdict.adherence_score >= 8 else "yellow" if r.verdict.adherence_score >= 5 else "red"
         table.add_row(
             str(r.iteration),
-            f"[{r_style}]{r.verdict.resemblance_score:.1f}[/{r_style}]",
+            f"[{f_style}]{r.verdict.facial_similarity:.1f}[/{f_style}]",
+            f"[{s_style}]{r.verdict.scene_adaptation:.1f}[/{s_style}]",
             f"[{a_style}]{r.verdict.adherence_score:.1f}[/{a_style}]",
             r.strategy,
             r.verdict.verdict_label,
@@ -323,9 +341,9 @@ def _print_summary(summary) -> None:
     
     console.print(table)
     
-    status = "[bold green]✅ CONVERGED[/bold green]" if summary.converged else "[bold red]❌ FAILED[/bold red]"
+    status = "[bold green]CONVERGED[/bold green]" if summary.converged else "[bold red]FAILED[/bold red]"
     console.print(f"\nStatus: {status}")
-    console.print(f"Best: Iter {summary.best_iteration + 1} (R:{summary.best_resemblance:.1f} A:{summary.best_adherence:.1f})")
+    console.print(f"Best: Iter {summary.best_iteration + 1} (F:{summary.best_facial_similarity:.1f} S:{summary.best_scene_adaptation:.1f} A:{summary.best_adherence:.1f})")
     console.print(f"Total time: {summary.total_elapsed:.1f}s")
 
 

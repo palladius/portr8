@@ -20,23 +20,22 @@ def test_get_verdict_color():
     assert get_verdict_color("SCHIFO (4)") == (200, 0, 0)
 
 
-def test_create_score_overlay_size():
+def test_create_score_overlay_same_size():
+    """Overlay should NOT change image dimensions — banner is drawn ON TOP."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        input_path = Path(tmpdir) / "test.jpg"
-        output_path = Path(tmpdir) / "output.jpg"
+        input_path = Path(tmpdir) / "test.png"
+        output_path = Path(tmpdir) / "output.png"
         
-        create_test_image(input_path, size=(100, 100))
+        create_test_image(input_path, size=(200, 200))
         
         verdict = JudgeVerdict(
-            verdict_label="BUONO (7)",
-            resemblance_score=7.0,
-            resemblance_rationale="Good",
+            facial_similarity=7.0,
+            scene_adaptation=7.0,
             adherence_score=7.5,
-            adherence_rationale="Good",
             is_photorealistic=True,
-            anti_beautification_flag=False,
-            critique="Test critique",
-            improvements="Test improvements"
+            facial_similarity_rationale="Good",
+            scene_adaptation_rationale="Good scene match",
+            adherence_rationale="Good",
         )
         
         result_path = create_score_overlay(
@@ -48,29 +47,25 @@ def test_create_score_overlay_size():
         
         assert result_path.exists()
         
-        # Check size increased
+        # Image dimensions should be EXACTLY the same (floating overlay, not appended)
         img = PILImage.open(result_path)
-        width, height = img.size
-        
-        assert width == 100
-        assert height > 100  # Height should be 100 + banner height (at least 60)
+        assert img.size == (200, 200)
 
 
 def test_create_score_overlay_default_path():
     with tempfile.TemporaryDirectory() as tmpdir:
-        input_path = Path(tmpdir) / "test.jpg"
+        input_path = Path(tmpdir) / "test.png"
         create_test_image(input_path)
         
         verdict = JudgeVerdict(
-            verdict_label="SCHIFO (4)",
-            resemblance_score=4.0,
-            resemblance_rationale="Bad",
+            facial_similarity=4.0,
+            scene_adaptation=6.0,
             adherence_score=4.5,
-            adherence_rationale="Bad",
             is_photorealistic=False,
+            facial_similarity_rationale="Bad",
+            scene_adaptation_rationale="Ok scene",
+            adherence_rationale="Bad",
             anti_beautification_flag=True,
-            critique="Bad",
-            improvements="Better"
         )
         
         result_path = create_score_overlay(
@@ -80,24 +75,23 @@ def test_create_score_overlay_default_path():
         )
         
         assert result_path.exists()
-        assert result_path.name == "test_scored.jpg"
+        assert result_path.name == "test_scored.png"
 
 
 def test_create_failure_overlay():
+    """Failure overlay should have same size + red-tinted banner."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        input_path = Path(tmpdir) / "test.jpg"
-        create_test_image(input_path, size=(100, 100))
+        input_path = Path(tmpdir) / "test.png"
+        create_test_image(input_path, size=(200, 200))
         
         verdict = JudgeVerdict(
-            verdict_label="SCHIFO (4)",
-            resemblance_score=4.0,
-            resemblance_rationale="Fail",
+            facial_similarity=4.0,
+            scene_adaptation=3.0,
             adherence_score=4.0,
-            adherence_rationale="Fail",
             is_photorealistic=True,
-            anti_beautification_flag=False,
-            critique="Fail",
-            improvements="Try harder"
+            facial_similarity_rationale="Fail",
+            scene_adaptation_rationale="Bad scene",
+            adherence_rationale="Fail",
         )
         
         result_path = create_failure_overlay(
@@ -107,14 +101,11 @@ def test_create_failure_overlay():
         )
         
         assert result_path.exists()
-        assert result_path.name == "test_failure.jpg"
+        assert result_path.name == "test_failure.png"
         
+        # Same dimensions — floating overlay
         img = PILImage.open(result_path)
-        width, height = img.size
-        
-        border = 8
-        assert width == 100 + 2 * border
-        assert height > 100 + 2 * border
+        assert img.size == (200, 200)
 
 
 @pytest.mark.parametrize("label", [
@@ -124,20 +115,19 @@ def test_create_failure_overlay():
     "SCHIFO"
 ])
 def test_overlay_all_verdicts(label):
+    """All verdict labels should produce valid overlays with same dimensions."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        input_path = Path(tmpdir) / "test.jpg"
-        create_test_image(input_path)
+        input_path = Path(tmpdir) / "test.png"
+        create_test_image(input_path, size=(300, 200))
         
         verdict = JudgeVerdict(
-            verdict_label=label,
-            resemblance_score=6.0,
-            resemblance_rationale="Rational",
+            facial_similarity=6.0,
+            scene_adaptation=7.0,
             adherence_score=6.0,
-            adherence_rationale="Rational",
             is_photorealistic=True,
-            anti_beautification_flag=False,
-            critique="Critique",
-            improvements="Improvements"
+            facial_similarity_rationale="Rational",
+            scene_adaptation_rationale="Good scene match",
+            adherence_rationale="Rational",
         )
         
         result_path = create_score_overlay(
@@ -149,5 +139,4 @@ def test_overlay_all_verdicts(label):
         assert result_path.exists()
         
         img = PILImage.open(result_path)
-        assert img.size[0] == 100
-        assert img.size[1] > 100
+        assert img.size == (300, 200)

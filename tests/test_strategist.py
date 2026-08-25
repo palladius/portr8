@@ -6,10 +6,12 @@ from lib.strategist import decide_strategy, PHOTOREALISM_CUES, _augment_prompt
 
 def make_verdict(r=5.0, a=5.0, photo=True, beautify=False):
     return JudgeVerdict(
-        resemblance_score=r,
+        facial_similarity=r,
+        scene_adaptation=7.0,
         adherence_score=a,
         is_photorealistic=photo,
-        resemblance_rationale="test",
+        facial_similarity_rationale="test",
+        scene_adaptation_rationale="Good scene match",
         adherence_rationale="test",
         anti_beautification_flag=beautify,
     )

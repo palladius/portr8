@@ -25,10 +25,12 @@ def iteration_records():
             image_model="gemini-test",
             judge_model="gemini-test",
             verdict=JudgeVerdict(
-                resemblance_score=7.0,
+                facial_similarity=7.0,
+        scene_adaptation=7.0,
                 adherence_score=6.0,
                 is_photorealistic=True,
-                resemblance_rationale="Not bad",
+                facial_similarity_rationale="Not bad",
+        scene_adaptation_rationale="Good scene match",
                 adherence_rationale="Needs more cat"
             ),
             elapsed_seconds=10.5,
@@ -45,10 +47,12 @@ def iteration_records():
             image_model="gemini-test",
             judge_model="gemini-test",
             verdict=JudgeVerdict(
-                resemblance_score=8.5,
+                facial_similarity=8.5,
+        scene_adaptation=7.0,
                 adherence_score=8.0,
                 is_photorealistic=True,
-                resemblance_rationale="Great",
+                facial_similarity_rationale="Great",
+        scene_adaptation_rationale="Good scene match",
                 adherence_rationale="None"
             ),
             elapsed_seconds=12.0,
@@ -65,10 +69,12 @@ def iteration_records():
             image_model="gemini-test",
             judge_model="gemini-test",
             verdict=JudgeVerdict(
-                resemblance_score=9.0,
+                facial_similarity=9.0,
+        scene_adaptation=7.0,
                 adherence_score=7.5,
                 is_photorealistic=True,
-                resemblance_rationale="Almost",
+                facial_similarity_rationale="Almost",
+        scene_adaptation_rationale="Good scene match",
                 adherence_rationale="Fix ears"
             ),
             elapsed_seconds=11.0,
@@ -93,7 +99,7 @@ def test_append_and_load(tmp_path: Path, iteration_records):
     assert loaded[2].iteration == 3
     
     # Values should match
-    assert loaded[0].verdict.resemblance_score == 7.0
+    assert loaded[0].verdict.facial_similarity == 7.0
 
 def test_best_iteration(tmp_path: Path, iteration_records):
     ledger = Ledger(tmp_path)
@@ -140,7 +146,7 @@ def test_to_summary(tmp_path: Path, iteration_records, run_config):
     assert summary.config == run_config
     assert len(summary.iterations) == 3
     assert summary.best_iteration == 1 # 0-indexed index of record 2
-    assert summary.best_resemblance == 8.5
+    assert summary.best_facial_similarity == 8.5
     assert summary.best_adherence == 8.0
     assert summary.converged is True
     assert summary.total_elapsed == 10.5 + 12.0 + 11.0

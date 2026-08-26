@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.2] — 2026-08-26
+
+### 🎨 Two-Pill Overlay Redesign
+
+- 🏷️ Big `#N` top-left + score bottom-right (two rounded pills)
+- 🟢 Color-coded score pill: green (≥8.0), dark (6.0-7.9), red (<6.0)
+- 🔴 Failure overlay: both pills red
+- 📐 Font sizes: iteration ~10% of image height, score ~7%
+
 ## [0.5.1] — 2026-08-26
 
 ### 🏷️ Simplified Overlay

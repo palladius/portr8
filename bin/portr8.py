@@ -7,6 +7,8 @@
 #     "pydantic>=2.0.0",
 #     "pillow>=10.0.0",
 #     "python-slugify>=8.0.0",
+#     "matplotlib>=3.7.0",
+#     "pyyaml>=6.0.0",
 # ]
 # ///
 """portr8 — Iterative character-consistent portrait convergence engine.
@@ -51,20 +53,36 @@ from lib.ledger import Ledger, create_output_dir, save_run_config
 console = Console()
 
 
+def load_env_file() -> None:
+    """Load key-value pairs from .env into os.environ if present."""
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            k, v = k.strip(), v.strip().strip("'\"")
+            if k and k not in os.environ:
+                os.environ[k] = v
+
+load_env_file()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="🎯 portr8 — Iterative character-consistent portrait convergence engine"
     )
     parser.add_argument("-p", "--prompt", required=True, help="Scene/portrait prompt")
     parser.add_argument("-c", "--character", required=True, help="Character name (must exist in data/characters/)")
-    parser.add_argument("--ref-dir", default="data/characters", help="Character reference directory")
-    parser.add_argument("--image-model", default="gemini-3.1-flash-image-preview", help="Image generation model")
-    parser.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL, help="Judge model")
-    parser.add_argument("--target", type=float, default=8.0, help="Target score (both axes must reach this)")
-    parser.add_argument("--max-iterations", type=int, default=10, help="Maximum iterations")
+    parser.add_argument("--ref-dir", default=os.getenv("PORTR8_REF_DIR", "data/characters"), help="Character reference directory")
+    parser.add_argument("--image-model", default=os.getenv("PORTR8_IMAGE_MODEL", "gemini-3.1-flash-image-preview"), help="Image generation model")
+    parser.add_argument("--judge-model", default=os.getenv("PORTR8_JUDGE_MODEL", DEFAULT_JUDGE_MODEL), help="Judge model")
+    parser.add_argument("--target", type=float, default=float(os.getenv("PORTR8_TARGET_SCORE", "8.0")), help="Target score (both axes must reach this)")
+    parser.add_argument("--max-iterations", type=int, default=int(os.getenv("PORTR8_MAX_ITERATIONS", "20")), help="Maximum iterations (default: $PORTR8_MAX_ITERATIONS or 20)")
     parser.add_argument("--dual-strategy", action="store_true", help="Use dual strategy (both edit + regenerate per iteration, pick best)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
-    parser.add_argument("--ref-transport", choices=["files_api", "pil"], default="files_api", help="Reference transport method")
+    parser.add_argument("--ref-transport", choices=["files_api", "pil"], default=os.getenv("PORTR8_REF_TRANSPORT", "files_api"), help="Reference transport method")
     parser.add_argument("--image-type", choices=["photo", "cartoon", "illustration"], default="photo",
                         help="Image style type (default: photo — cartoon is too easy!)")
     return parser.parse_args()
@@ -115,18 +133,24 @@ def main():
     
     # Resolve character references
     try:
-        ref_paths = resolve_character_images(config.character, config.ref_dir)
+        ref_dict = {}
+        all_ref_paths = []
+        for char in config.characters:
+            paths = resolve_character_images(char, config.ref_dir)
+            if not paths:
+                console.print(f"[bold red]❌ No reference photos found for '{char}'[/bold red]")
+                sys.exit(1)
+            ref_dict[char] = paths
+            all_ref_paths.extend(paths)
     except FileNotFoundError as e:
         console.print(f"[bold red]❌ {e}[/bold red]")
         sys.exit(1)
     
-    if not ref_paths:
-        console.print(f"[bold red]❌ No reference photos found for '{config.character}'[/bold red]")
-        sys.exit(1)
-    
-    console.print(f"\n📸 Found {len(ref_paths)} reference photo(s)")
-    for p in ref_paths:
-        console.print(f"  • {to_tilde_path(p)}")
+    console.print(f"\n📸 Found {len(all_ref_paths)} total reference photo(s) for {len(config.characters)} character(s):")
+    for char, paths in ref_dict.items():
+        console.print(f"  • [cyan]{char.capitalize()}[/cyan]: {len(paths)} photos")
+        for p in paths:
+            console.print(f"    - {to_tilde_path(p)}")
     
     # Create output directory
     output_dir = create_output_dir(config.prompt)
@@ -139,20 +163,40 @@ def main():
     client = genai.Client(api_key=api_key)
     ledger = Ledger(output_dir)
     
+    # Load character metadata from character.yaml if available
+    from lib.generator import load_characters_metadata
+    characters_meta = load_characters_metadata(config.characters, config.ref_dir)
+    if characters_meta:
+        console.print(f"📖 Loaded YAML definitions for {len(characters_meta)} character(s):")
+        for c_name, meta in characters_meta.items():
+            bp = meta.to_biometric_blueprint()
+            if bp:
+                console.print(f"  • [cyan]{c_name.capitalize()}[/cyan]: {bp[:100]}...")
+
     # Upload references
     console.print(f"\n📡 Uploading references via {config.ref_transport}...")
     if config.ref_transport == "files_api":
         try:
-            references = upload_references_files_api(client, ref_paths)
+            references = upload_references_files_api(client, all_ref_paths)
         except Exception as e:
             console.print(f"[yellow]⚠️ Files API failed: {e}. Falling back to PIL.[/yellow]")
-            references = load_references_pil(ref_paths)
+            references = load_references_pil(all_ref_paths)
     else:
-        references = load_references_pil(ref_paths)
+        references = load_references_pil(all_ref_paths)
     
     # === CONVERGENCE LOOP ===
     previous_image_path = None
-    augmented_prompt = config.prompt
+    
+    # Format initial prompt incorporating character blueprints if available
+    if characters_meta:
+        initial_parts = [config.prompt.rstrip(".")]
+        for c_name, meta in characters_meta.items():
+            bp = meta.to_biometric_blueprint()
+            if bp:
+                initial_parts.append(f"Character '{c_name.capitalize()}' profile: {bp}")
+        augmented_prompt = ". ".join(initial_parts) + "."
+    else:
+        augmented_prompt = config.prompt
     
     for iteration in range(config.max_iterations):
         iter_start = time.time()
@@ -170,6 +214,8 @@ def main():
                 original_prompt=config.prompt,
                 iteration=iteration,
                 previous_augmented_prompt=augmented_prompt,
+                characters=config.characters,
+                characters_metadata=characters_meta,
                 image_type=config.image_type,
                 target_score=config.target_score,
             )
@@ -209,9 +255,11 @@ def main():
             verdict = judge_image(
                 client=client,
                 image_path=image_path,
-                reference_paths=ref_paths,
+                reference_paths=all_ref_paths,
                 prompt=config.prompt,
                 character_name=config.character,
+                characters=config.characters,
+                characters_metadata=characters_meta,
                 model=config.judge_model,
                 image_type=config.image_type,
             )
@@ -254,22 +302,25 @@ def main():
         )
         ledger.append(record)
         
-        # Check convergence: facial_similarity & adherence >= target, scene_adaptation >= 5.0
+        # Check convergence: all facial similarities & adherence >= target, scene_adaptation >= 5.0
+        min_facial = min(verdict.character_facial_scores) if verdict.character_facial_scores else verdict.facial_similarity
         converged = (
-            verdict.facial_similarity >= config.target_score
+            min_facial >= config.target_score
             and verdict.adherence_score >= config.target_score
             and verdict.scene_adaptation >= 5.0
         )
         if converged:
             console.print(f"\n[bold green]🏆 CONVERGED![/bold green]")
-            console.print(f"   Facial similarity: {verdict.facial_similarity:.1f}")
+            console.print(f"   Facial bottleneck: {min_facial:.1f}")
             console.print(f"   Scene adaptation: {verdict.scene_adaptation:.1f}")
             console.print(f"   Adherence: {verdict.adherence_score:.1f}")
+            console.print(f"   Average (Media): {verdict.average_score:.1f}")
             console.print(f"   Verdict: {verdict.verdict_label}")
             break
         else:
             remaining = config.max_iterations - iteration - 1
-            console.print(f"\n  ⏳ Not converged (F:{verdict.facial_similarity:.1f} S:{verdict.scene_adaptation:.1f} A:{verdict.adherence_score:.1f}). {remaining} left.")
+            f_display = "/".join(f"{s:.1f}" for s in verdict.character_facial_scores) if verdict.character_facial_scores else f"{verdict.facial_similarity:.1f}"
+            console.print(f"\n  ⏳ Not converged (F:{f_display} S:{verdict.scene_adaptation:.1f} A:{verdict.adherence_score:.1f} Avg:{verdict.average_score:.1f}). {remaining} left.")
         
         previous_image_path = image_path
     
@@ -317,6 +368,15 @@ def main():
     console.print(f"\n💾 Summary saved: [blue]{to_tilde_path(summary_path)}[/blue]")
     console.print(f"💾 Ledger saved: [blue]{to_tilde_path(ledger.ledger_path)}[/blue]")
     
+    # Auto-update global out/ index
+    try:
+        import subprocess
+        index_script = Path(__file__).parent / "index.py"
+        subprocess.run([sys.executable, str(index_script), "--out-dir", str(output_dir.parent)], check=False)
+        console.print(f"📑 Global index updated: [blue]{to_tilde_path(output_dir.parent / 'index.md')}[/blue]")
+    except Exception as e:
+        console.print(f"[yellow]⚠️ Index update failed: {e}[/yellow]")
+    
     # Exit code
     if summary.converged:
         sys.exit(0)
@@ -329,26 +389,47 @@ def _print_summary(summary) -> None:
     """Print a rich summary table."""
     table = Table(title="🎯 portr8 Run Summary")
     table.add_column("Iter", style="cyan")
-    table.add_column("Facial", justify="right")
+    
+    characters = summary.config.characters or ([summary.config.character] if summary.config.character else [])
+    is_multi = len(characters) > 1
+    
+    if is_multi:
+        for i, c in enumerate(characters):
+            table.add_column(f"F{i+1} ({c.capitalize()})", justify="right")
+    else:
+        table.add_column("Facial", justify="right")
+        
     table.add_column("Scene", justify="right")
     table.add_column("Adherence", justify="right")
+    table.add_column("Media", justify="right")
     table.add_column("Strategy")
     table.add_column("Verdict")
     table.add_column("Time", justify="right")
     
     for r in summary.iterations:
-        f_style = "green" if r.verdict.facial_similarity >= 8 else "yellow" if r.verdict.facial_similarity >= 5 else "red"
+        row = [str(r.iteration)]
+        if is_multi:
+            for i in range(len(characters)):
+                s = r.verdict.character_facial_scores[i] if len(r.verdict.character_facial_scores) > i else r.verdict.facial_similarity
+                col = "green" if s >= 8 else "yellow" if s >= 5 else "red"
+                row.append(f"[{col}]{s:.1f}[/{col}]")
+        else:
+            f_style = "green" if r.verdict.facial_similarity >= 8 else "yellow" if r.verdict.facial_similarity >= 5 else "red"
+            row.append(f"[{f_style}]{r.verdict.facial_similarity:.1f}[/{f_style}]")
+            
         s_style = "green" if r.verdict.scene_adaptation >= 8 else "yellow" if r.verdict.scene_adaptation >= 5 else "red"
         a_style = "green" if r.verdict.adherence_score >= 8 else "yellow" if r.verdict.adherence_score >= 5 else "red"
-        table.add_row(
-            str(r.iteration),
-            f"[{f_style}]{r.verdict.facial_similarity:.1f}[/{f_style}]",
+        avg_style = "green" if r.verdict.average_score >= 8 else "yellow" if r.verdict.average_score >= 6 else "red"
+        
+        row.extend([
             f"[{s_style}]{r.verdict.scene_adaptation:.1f}[/{s_style}]",
             f"[{a_style}]{r.verdict.adherence_score:.1f}[/{a_style}]",
+            f"[{avg_style}]{r.verdict.average_score:.1f}[/{avg_style}]",
             r.strategy,
             r.verdict.verdict_label,
             f"{r.elapsed_seconds:.1f}s",
-        )
+        ])
+        table.add_row(*row)
     
     console.print(table)
     

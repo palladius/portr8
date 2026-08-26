@@ -6,22 +6,49 @@
 
 **portr8** is an iterative character-consistent portrait convergence engine.
 It generates photorealistic images of real people using Gemini's image generation models,
-judges them on TWO axes (resemblance + prompt adherence), and loops until both scores hit ≥ 8/10.
+judges them on THREE axes (facial similarity + scene adaptation + prompt adherence), and loops until both scores hit ≥ 8/10.
 
-## Architecture
+## 📖 User Manual & CUJs
+
+See [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) for the complete user manual, architecture guide, and Critical User Journeys (CUJs).
+**Agent Instruction**: Whenever new capabilities, CLI flags, workflows, or interesting scenarios/uses are added to `portr8`, ALWAYS update and maintain [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) to keep it rich and practical.
+
+## Architecture & Scripts
 
 ```
 bin/portr8.py     → Main CLI orchestrator (PEP 723, uv-runnable)
+bin/index.py      → Catalog and global index generator (builds out/index.md, out/README.md, CSV, JSON)
 bin/calibrate.py  → Rater calibration tool
 bin/report.py     → Standalone report generator
-lib/models.py     → Pydantic data models (JudgeVerdict, IterationRecord, RunConfig)
-lib/generator.py  → Image generation (wraps google-genai SDK)
-lib/judge.py      → Dual-axis LLM judge (resemblance + adherence + photorealism)
-lib/strategist.py → Decides edit-vs-regenerate, builds augmented prompts
-lib/overlay.py    → Pillow/FFmpeg score overlay on images
+lib/models.py     → Pydantic data models (JudgeVerdict, IterationRecord, RunConfig, RunSummary)
+lib/generator.py  → Image generation (wraps google-genai SDK, multi-character reference transport)
+lib/judge.py      → Multi-axis LLM judge (facial F1..Fn + scene adaptation + prompt adherence + photorealism)
+lib/strategist.py → Decides edit-vs-regenerate, builds positive biometric augmented prompts
+lib/overlay.py    → Minimalist 2-pill score overlay (Top-Left #N, Bottom-Right Average score in yellow)
+lib/grapher.py    → Multi-curve convergence graph (zone bands, bottleneck tracking, F1..Fn)
 lib/ledger.py     → JSONL iteration tracking (append-only ledger)
-lib/reporter.py   → Markdown/HTML slide deck generator
+lib/reporter.py   → Markdown & HTML report generator (with embedded convergence.png)
 ```
+
+## 🔄 End-to-End Execution Flow
+
+When a run is launched via `bin/portr8.py`:
+1. **Reference Resolution**: Resolves reference photos for single or multiple characters (`-c kate,riccardo`) from `--ref-dir` (or private vault).
+2. **Files API Upload**: Uploads full-resolution references via Gemini Files API (preserving micro-biometrics).
+3. **Iterative Convergence Loop** (min 5 iterations in testing, default 10):
+   - **Generation**: Generates or edits using `gemini-2.5-flash-image` / `gemini-3.1-flash-image-preview`.
+   - **Multi-Axis Judging**: `gemini-3.5-flash` evaluates $F_1, F_2, \dots$ (facial), $S$ (scene), $A$ (adherence), photorealism & anti-beautification.
+   - **Overlay**: Stamps floating yellow pills: `#N` (top-left) and `MEDIA` score (bottom-right) on `iter_XX_scored.png`.
+   - **Strategy Feedback**: Strategist augments prompt with positive biometric directions or chooses image refinement (`edit`).
+4. **Per-Run Report & Graph**:
+   - Generates `convergence.png` with color verdict zones and metric trajectories.
+   - Writes `README.md` and `index.md` inside `out/<run-id>/`.
+   - Saves `summary.json` and `ledger.jsonl`.
+5. **Catalog & Global Indexing**:
+   - Automatically runs `bin/index.py` to refresh `out/index.md`, `out/README.md`, `out/index.csv`, and `out/catalog.json`.
+6. **Cloud Publishing (Storagify)**:
+   - Run `just storagify` to sync all Markdown/HTML reports and images to Google Cloud Storage (`gs://palladius-genai-storagify/.../out/index.html`).
+   - `storagify out/` should suffice :)
 
 ## Critical Design Constraints (from empirical research)
 
@@ -114,6 +141,7 @@ See `docs/SPECS.md` §"Lessons Learned" for the 13 empirical findings that shape
 **Tokens are free. Don't ask, just do.**
 
 - Feel free to **try, experiment, and iterate** — API calls cost nothing to us.
+- **NEVER use fewer than 5 iterations in testing** (minimum 5, default 10). 1–3 iterations are too few to observe whether judge feedback was utilized or if regressions occurred.
 - Run `portr8` with different prompts, characters, image types, and targets to explore.
 - **Present the user with tangible, visual results** — images, score tables, comparison artifacts.
   Don't show intermediate steps or ask "should I run this?". Just run it and present the output.

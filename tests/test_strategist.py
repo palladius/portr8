@@ -37,9 +37,28 @@ def test_low_adherence_forces_regenerate():
     assert dec.strategy == "regenerate"
 
 def test_workable_scores_returns_edit():
-    v = make_verdict(r=5.0, a=5.0)
+    v = make_verdict(r=6.5, a=6.5)
     dec = decide_strategy(v, "Test prompt", 1)
     assert dec.strategy == "edit"
+
+def test_multi_character_feedback_incorporation():
+    v = JudgeVerdict(
+        facial_similarity=4.5,
+        scene_adaptation=7.5,
+        adherence_score=8.0,
+        is_photorealistic=True,
+        facial_similarity_rationale="Kate has smoothed skin, Riccardo has wrong hair",
+        scene_adaptation_rationale="Swimwear matches pool",
+        adherence_rationale="Alps and pool present",
+        character_facial_scores=[6.5, 4.5],
+        character_facial_rationales=[
+            "Kate has good smile but slightly smoothed skin",
+            "Riccardo is missing his distinct jawline and has added thick beard",
+        ],
+    )
+    dec = decide_strategy(v, "Kate and Riccardo in pool", 1, characters=["kate", "riccardo"])
+    assert "CRITICAL FACIAL CORRECTIONS PER CHARACTER" in dec.augmented_prompt
+    assert "Riccardo: Riccardo is missing his distinct jawline" in dec.augmented_prompt
 
 def test_augmented_prompt_contains_photorealism():
     v = make_verdict(r=8.0, a=8.0)

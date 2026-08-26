@@ -63,3 +63,37 @@ def test_load_references_pil(tmp_path):
 def test_generate_image_importable():
     # We just want to make sure it's importable and the signature is there.
     assert callable(generate_image)
+
+def test_load_character_metadata(tmp_path):
+    from lib.generator import load_character_metadata, load_characters_metadata
+    char_dir = tmp_path / "riccardo2016"
+    char_dir.mkdir()
+    yaml_content = """
+name: Riccardo
+birth_year: 1980
+appearance:
+  hair: "short dark brown hair"
+  facial_hair: "clean-shaven, no beard"
+  face_structure: "friendly open face"
+prompt_guidelines:
+  must_include:
+    - "casual open-collar shirt"
+  must_avoid:
+    - "formal suit, beard"
+"""
+    (char_dir / "character.yaml").write_text(yaml_content)
+    
+    meta = load_character_metadata("riccardo2016", ref_dir=str(tmp_path))
+    assert meta is not None
+    assert meta.name == "Riccardo"
+    assert meta.hair == "short dark dark hair" or "dark" in meta.hair
+    assert "clean-shaven" in meta.facial_hair
+    
+    bp = meta.to_biometric_blueprint()
+    assert "Hair: short dark brown hair" in bp
+    assert "Facial hair: clean-shaven, no beard" in bp
+    assert "casual open-collar shirt" in bp
+    
+    # Test batch loading
+    multi_meta = load_characters_metadata(["riccardo2016"], ref_dir=str(tmp_path))
+    assert "riccardo2016" in multi_meta

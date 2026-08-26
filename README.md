@@ -19,7 +19,7 @@ uv sync
 ./bin/portr8.py \
   -p "Riccardo eats an ice cream in the savannah surrounded by lions, photorealistic" \
   -c riccardo \
-  --max-iterations 10
+  --max-iterations 20
 
 # Or use just
 just demo

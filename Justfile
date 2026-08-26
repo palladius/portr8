@@ -1,9 +1,13 @@
+set dotenv-load := true
+
+MAX_ITER := env_var_or_default("PORTR8_MAX_ITERATIONS", "20")
+
 # Default: list tasks
 list:
     @just --list
 
 # Run the main portr8 convergence loop
-run prompt character="riccardo" max_iter="10":
+run prompt character="riccardo" max_iter=MAX_ITER:
     uv run ./bin/portr8.py -p "{{prompt}}" -c {{character}} --max-iterations {{max_iter}}
 
 # Run with dual strategy (edit + regenerate)
@@ -51,3 +55,12 @@ index:
 # Generate run index as CSV
 index-csv:
     uv run ./bin/index.py --format csv
+
+# Rebuild index and sync out/ to GCS via storagify
+storagify:
+    @just index
+    storagify "{{invocation_directory()}}/out"
+
+# Alias for storagify
+sync:
+    @just storagify

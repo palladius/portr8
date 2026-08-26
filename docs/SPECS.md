@@ -151,11 +151,43 @@ Fallback chain for judging: `gemini-3.5-flash` → `gemini-3.6-flash` → `gemin
 
 **→ portr8 design constraint:** Default `--judge-model` to `gemini-3.5-flash`. The calibration tool should test this against alternatives.
 
-### Lesson 13: Existing eval_dataset.py + Web Portal Pattern
+### Lesson 14: Overlay Score Philosophy & Visual Hygiene
 
-[`eval_single_model.py`](file:///usr/local/google/home/ricc/git/gemini-tools/bin/eval_single_model.py#L290-L295) upserts records into `evaluations.jsonl` via an `eval_dataset` module, and there's a web portal (`web/server.js`) for human review.
+From empirical testing on UI presentation and human review:
+1. **Pill-style minimalism over cluttered text banners**: Instead of massive multi-line banners obscuring the art, use two clean rounded pills:
+   - **Top-left**: Big `#N` (iteration number).
+   - **Bottom-right**: `X.X` (single aggregate score).
+2. **Color scheme**:
+   - Background: Dark semi-transparent pill (`rgba(0, 0, 0, 0.65)`).
+   - Foreground Text: Warm bright yellow (`#FFE000` / `RGB 255, 224, 0`) for crisp contrast against both snow, pool water, and dark scenery.
+   - Quality-colored border/fill on score pill (Green for $\ge 8.0$, Dark for $\ge 6.0$, Red for $< 6.0$).
+3. **Single Score Metric = Arithmetic Mean (Media)**:
+   - The overlay pill shows the **AVERAGE (Media)** across all active axes ($F_1, F_2, \dots, S, A$).
+   - The full forensic breakdown ($F_1, F_2, S, A$, bottleneck, rationales) is preserved in reports, ledgers, and terminal output.
+4. **Generic Multi-Character Indexing ($F_1, F_2, \dots$)**:
+   - Avoid letter collisions (e.g. Riccardo & Rosamaria both starting with 'R') by indexing characters as $F_1, F_2, \dots, F_N$.
 
-**→ portr8 design constraint:** Consider compatibility with the gemini-tools JSONL format for records that have `robot_eval` and `human_eval` fields, and a `status: "PENDING_HUMAN"` workflow. This allows reusing the web approval UI if desired.
+### Lesson 15: Minimum Iteration Floor in Testing ($N \ge 5$)
+
+In empirical experimentation and agentic testing:
+- **NEVER use fewer than 5 iterations ($N \ge 5$)**.
+- 1–3 iterations are too few to observe whether the feedback loop actually guides prompt refinement, if the strategist makes sound edit-vs-regenerate choices, or if regression/drift occurs.
+- 5–10 iterations provide the necessary trajectory depth to evaluate convergence curves, rater variance, and prompt steering effectively.
+- **Tokens are free: don't truncate runs early.**
+
+### Lesson 16: Complete Feedback Loop Transmission & Per-Character Rationales
+
+From empirical debugging of iteration regression and "blind edits":
+1. **The Judge's feedback must never be lost in transit**: In both `EDIT` and `REGENERATE` modes, the prompt passed to Gemini MUST include the exact feedback and rationale produced by the Judge in iteration $N-1$.
+2. **Per-character breakdown ($F_1, F_2, \dots$)**: For multi-character prompts, feedback must specify each individual character's biometric flaw (e.g. `Character 2 (Riccardo): beard must be removed, hair darkened`).
+3. **Explicit Edit Mode Instructions**: In `EDIT` mode, the payload must explicitly instruct Gemini: *"You are refining the provided image. Modify and correct the image according to these specific instructions..."* rather than relying on an ambiguous prompt.
+
+### Lesson 17: Authoritative `character.yaml` Biometric Ingestion
+
+From real-world character consistency testing:
+1. **Automated extraction**: Physical features (hair color/length, facial hair vs. clean-shaven, facial structure, visual look) and wardrobe guidelines defined in `data/characters/<name>/character.yaml` must be automatically loaded by the harness.
+2. **Prompt enrichment**: Physical features must be formatted into positive biometric blueprints and injected into generation prompts automatically, without forcing the user to manually write physical descriptions in every CLI prompt.
+3. **Judge alignment**: The authoritative character profile must also be passed to `lib/judge.py` so the evaluator penalizes contradictions (e.g. adding a beard when the YAML specifies clean-shaven).
 
 ---
 

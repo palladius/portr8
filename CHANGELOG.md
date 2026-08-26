@@ -3,6 +3,75 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.1] — 2026-08-26
+
+### 🔄 Enhanced Feedback Loop Transmission & YAML Character Ingestion
+
+- 🧠 **Complete Feedback Loop**: In both `EDIT` and `REGENERATE` modes, the prompt explicitly transfers the judge's exact per-character biometric rationales ($F_1, F_2, \dots$) as structured positive directives.
+- 📖 **Automatic `character.yaml` Ingestion**: The harness automatically parses ground-truth physical characteristics (hair, clean-shaven / beard rules, visual look) and injects them into generation prompts and judge evaluation criteria.
+- ✂️ **Structured Edit Payloads**: Refined `EDIT` payloads with clear instructions to preserve composition while modifying detected facial/scene defects.
+- 🧪 **Unit Tests**: Added tests for YAML character profile parsing, biometric blueprint generation, and multi-character feedback transmission.
+- 📑 **SPECS.md Lessons 16 & 17**: Codified complete feedback transmission and YAML metadata ingestion rules.
+
+## [0.6.0] — 2026-08-26
+
+### 👥 Multi-Character Consistency & Refined Scoring Overlay
+
+- 👥 **Multi-Character Architecture**: Added full multi-character support (`-c kate,riccardo` / `--characters`), resolving and uploading reference images for all characters with distinct prompt context binding.
+- 👨‍⚖️ **Multi-Biometric LLM Judge**: Independent facial similarity tracking ($F_1, F_2, \dots$) alongside Scene Adaptation ($S$) and Prompt Adherence ($A$).
+- 🏷️ **Pill Overlay Refinement (Lesson 14)**: Score pill now computes the arithmetic mean (MEDIA) in warm yellow (`#FFE000`) with optimized font scaling (-10%) and rounded dark pill backdrop.
+- 🧪 **Minimum Testing Floor (Lesson 15)**: Enforced minimum 5 iterations in testing ($N \ge 5$) to track real convergence curves and drift prevention.
+- 📈 **Multi-Curve Graphing**: Independent plotting for each character ($F_1, F_2$), Scene, Adherence, and Bottleneck score.
+- 📑 **Comprehensive Docs & SPECS Alignment**: Synchronized `GEMINI.md`, `docs/SPECS.md`, and `docs/USER_MANUAL.md`.
+
+## [0.5.7] — 2026-08-26
+
+### 🎨 Graph De-Cluttering & Multi-Iteration Honeymoon Progression
+
+- 🧹 Removed text labels from convergence graph background zones (clean aesthetic driven solely by soft zone colors)
+- 🏊‍♀️ Generated full multi-iteration honeymoon progression for Kate & Riccardo in Switzerland (3 iterations: initial -> regenerate -> edit)
+- 📊 Fully synchronized Storagify cloud catalog with newly formatted graphs and reports
+
+## [0.5.6] — 2026-08-26
+
+### 📈 Convergence Graphing, Reports & Comprehensive User Manual
+
+- 📖 Created comprehensive [`docs/USER_MANUAL.md`](docs/USER_MANUAL.md) detailing architecture, the 3-axis scoring rubric, and 7 Critical User Journeys (CUJs)
+- 🤖 Updated `GEMINI.md` to reference `docs/USER_MANUAL.md` with instructions for all agents to keep it updated
+- 📑 `bin/index.py` now writes/updates both `out/index.md` and `out/README.md` concurrently
+- 📊 Fixed x-axis indexing in `lib/grapher.py` to match 1-based iteration counts
+- 📄 `lib/reporter.py` now writes both `README.md` and `index.md` per run for seamless Storagify & web rendering
+- 📦 Added `matplotlib` to `bin/portr8.py` inline script metadata
+- 🏆 Verified full convergence pipeline with dual-axis judge (`gemini-3.5-flash`), score overlays, and JSON ledger
+
+## [0.5.5] — 2026-08-26
+
+### 🌿 Universal Environment Variable & DRY Configuration
+
+- 🌐 Full DRY support for `PORTR8_MAX_ITERATIONS` (and other `PORTR8_*` env vars)
+- ⚙️ `RunConfig` in `lib/models.py` uses `default_factory` reading from `os.getenv`
+- 🖥️ `bin/portr8.py` automatically loads `.env` on startup and defaults CLI flags to env values
+- 📜 `Justfile` enabled `set dotenv-load := true` and `env_var_or_default("PORTR8_MAX_ITERATIONS", "20")`
+- 📝 `.env.dist` updated with `PORTR8_MAX_ITERATIONS=20`
+
+## [0.5.4] — 2026-08-26
+
+### 🔄 Default Iterations & Metric Simplification
+
+- ⏱️ Increased default maximum iterations from 10 to 20 across CLI, `Justfile`, `RunConfig`, and docs
+- 🎯 Simplified index score display to single bottleneck rating with Italian verdict badges
+- 🔗 Hardened subfolder links in index with explicit `index.html` targets for reliable GCS hosting
+
+## [0.5.3] — 2026-08-26
+
+### 📑 Automated Indexing & Storagify Integration
+
+- 📁 Direct subfolder links in `out/index.md` and public HTML for easy 1-click navigation
+- 🧹 Cleaned and decluttered index table layout (focused on folder, character emoji, prompt, iterations, best scores, status, and artifact links)
+- 🔄 Automatic index updating at the end of `portr8.py` runs
+- 🛠️ Robust backward compatibility in `models.py` and `index.py` for legacy run schemas
+- 📦 Added `just storagify` and `just sync` recipes to easily build and push the public HTML gallery to GCS
+
 ## [0.5.2] — 2026-08-26
 
 ### 🎨 Two-Pill Overlay Redesign

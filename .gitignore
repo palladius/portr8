@@ -18,6 +18,8 @@ build/
 # === portr8 outputs (large, per-run) ===
 out/
 calibration/
+tmp/
+
 
 # === IDE ===
 .idea/

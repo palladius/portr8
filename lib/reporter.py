@@ -54,22 +54,50 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
     # Score Progression
     lines.append(f"## Score Progression")
     lines.append(f"")
-    lines.append(f"| Iter | Facial | Scene | Adherence | Strategy | Verdict | Time |")
-    lines.append(f"|:---:|:---:|:---:|:---:|:---|:---|:---:|")
-    for r in summary.iterations:
-        lines.append(
-            f"| {r.iteration} | {r.verdict.facial_similarity:.1f} "
-            f"| {r.verdict.scene_adaptation:.1f} "
-            f"| {r.verdict.adherence_score:.1f} "
-            f"| {r.strategy} | {_strip_emoji(r.verdict.verdict_label)} | {r.elapsed_seconds:.1f}s |"
-        )
+    
+    characters = summary.config.characters or ([summary.config.character] if summary.config.character else [])
+    is_multi = len(characters) > 1
+    
+    if is_multi:
+        headers = ["Iter"] + [f"F{i+1} ({c.capitalize()})" for i, c in enumerate(characters)] + ["Scene", "Adherence", "Media", "Strategy", "Verdict", "Time"]
+        lines.append("| " + " | ".join(headers) + " |")
+        lines.append("| " + " | ".join([":---:"] * (len(headers) - 3) + [":---", ":---", ":---:"]) + " |")
+        for r in summary.iterations:
+            f_scores_row = [
+                f"{r.verdict.character_facial_scores[i]:.1f}" if len(r.verdict.character_facial_scores) > i else f"{r.verdict.facial_similarity:.1f}"
+                for i in range(len(characters))
+            ]
+            row = (
+                [str(r.iteration)]
+                + f_scores_row
+                + [
+                    f"{r.verdict.scene_adaptation:.1f}",
+                    f"{r.verdict.adherence_score:.1f}",
+                    f"{r.verdict.average_score:.1f}",
+                    r.strategy,
+                    _strip_emoji(r.verdict.verdict_label),
+                    f"{r.elapsed_seconds:.1f}s",
+                ]
+            )
+            lines.append("| " + " | ".join(row) + " |")
+    else:
+        lines.append(f"| Iter | Facial | Scene | Adherence | Media | Strategy | Verdict | Time |")
+        lines.append(f"|:---:|:---:|:---:|:---:|:---:|:---|:---|:---:|")
+        for r in summary.iterations:
+            lines.append(
+                f"| {r.iteration} | {r.verdict.facial_similarity:.1f} "
+                f"| {r.verdict.scene_adaptation:.1f} "
+                f"| {r.verdict.adherence_score:.1f} "
+                f"| {r.verdict.average_score:.1f} "
+                f"| {r.strategy} | {_strip_emoji(r.verdict.verdict_label)} | {r.elapsed_seconds:.1f}s |"
+            )
     lines.append(f"")
     
-    # Convergence graph (if exists)
-    if summary.graph_path:
+    # Convergence graph
+    if summary.graph_path or (output_dir / "convergence.png").exists():
         lines.append(f"## Convergence Graph")
         lines.append(f"")
-        lines.append(f"![Convergence](convergence.png)")
+        lines.append(f"![Convergence Graph](convergence.png)")
         lines.append(f"")
     
     # Best Iteration
@@ -119,7 +147,10 @@ def generate_report(summary: RunSummary, output_dir: Path) -> Path:
             lines.append(f"![Iteration {r.iteration}]({scored_name})")
             lines.append(f"")
     
-    report_path.write_text("\n".join(lines))
+    content = "\n".join(lines)
+    report_path.write_text(content)
+    index_path = output_dir / "index.md"
+    index_path.write_text(content)
     return report_path
 
 

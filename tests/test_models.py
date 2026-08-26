@@ -145,7 +145,9 @@ def test_iteration_record_serialization():
     assert loaded_record.iteration == record.iteration
     assert loaded_record.verdict.facial_similarity == 8.0
 
-def test_run_config_defaults():
+def test_run_config_defaults(monkeypatch):
+    for env_var in ["PORTR8_MAX_ITERATIONS", "PORTR8_TARGET_SCORE", "PORTR8_IMAGE_MODEL", "PORTR8_JUDGE_MODEL", "PORTR8_REF_TRANSPORT", "PORTR8_REF_DIR"]:
+        monkeypatch.delenv(env_var, raising=False)
     config = RunConfig(
         prompt="A photo",
         character="bob"
@@ -154,11 +156,23 @@ def test_run_config_defaults():
     assert config.image_model == "gemini-3.1-flash-image-preview"
     assert config.judge_model == "gemini-3.5-flash"
     assert config.target_score == 8.0
-    assert config.max_iterations == 10
+    assert config.max_iterations == 20
     assert config.dual_strategy is False
     assert config.seed is None
     assert config.ref_transport == "files_api"
     assert config.portr8_version == "0.1.0"
+
+def test_run_config_env_overrides(monkeypatch):
+    monkeypatch.setenv("PORTR8_MAX_ITERATIONS", "35")
+    monkeypatch.setenv("PORTR8_TARGET_SCORE", "9.2")
+    monkeypatch.setenv("PORTR8_IMAGE_MODEL", "custom-model")
+    config = RunConfig(
+        prompt="A photo",
+        character="bob"
+    )
+    assert config.max_iterations == 35
+    assert config.target_score == 9.2
+    assert config.image_model == "custom-model"
 
 def test_character_metadata():
     c1 = CharacterMetadata(name="Alice")
@@ -199,3 +213,29 @@ def test_run_summary_converged():
         output_dir="~/out"
     )
     assert summary2.converged is False
+
+
+def test_multi_character_run_config_and_scoring():
+    config = RunConfig(
+        prompt="Photo of Kate and Riccardo",
+        character="kate, riccardo"
+    )
+    assert config.characters == ["kate", "riccardo"]
+    assert config.character == "kate, riccardo"
+
+    v = JudgeVerdict(
+        facial_similarity=7.2,
+        character_facial_scores=[8.4, 7.2],
+        character_facial_rationales=["Kate looks great", "Riccardo beard is good"],
+        scene_adaptation=8.0,
+        adherence_score=9.0,
+        is_photorealistic=True,
+        facial_similarity_rationale="Multi-char",
+        scene_adaptation_rationale="Scene ok",
+        adherence_rationale="Adherence ok"
+    )
+    # Average: (8.4 + 7.2 + 8.0 + 9.0) / 4 = 8.15
+    assert round(v.average_score, 2) == 8.15
+    # Bottleneck: min(8.4, 7.2, 8.0, 9.0) = 7.2
+    assert v.bottleneck_score == 7.2
+    assert v.verdict_label == "BUONO 👍"

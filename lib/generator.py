@@ -59,18 +59,41 @@ def resolve_character_images(character: str, ref_dir: str = "data/characters", m
     return imgs[:max_images]
 
 
+def resolve_characters_images(characters: list[str], ref_dir: str = "data/characters", max_images_per_char: int = 3) -> dict[str, list[str]]:
+    """Resolve reference images for multiple characters.
+    
+    Returns: dict mapping character_name -> list of reference image paths
+    """
+    result = {}
+    for char in characters:
+        result[char] = resolve_character_images(char, ref_dir=ref_dir, max_images=max_images_per_char)
+    return result
+
+
 def load_character_metadata(character: str, ref_dir: str = "data/characters") -> CharacterMetadata | None:
     """Load character.yaml metadata if it exists."""
-    import yaml  # Don't add pyyaml as dep yet — make it optional
+    import yaml
     yaml_path = Path(ref_dir) / character.lower() / "character.yaml"
     if yaml_path.exists():
         try:
             with open(yaml_path) as f:
                 data = yaml.safe_load(f)
-            return CharacterMetadata(**data)
-        except Exception:
+            if isinstance(data, dict):
+                return CharacterMetadata.from_yaml_dict(data)
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Failed to load character.yaml for {character}: {e}[/yellow]")
             return None
     return None
+
+
+def load_characters_metadata(characters: list[str], ref_dir: str = "data/characters") -> dict[str, CharacterMetadata]:
+    """Load metadata for all specified characters."""
+    meta = {}
+    for char in characters:
+        m = load_character_metadata(char, ref_dir=ref_dir)
+        if m:
+            meta[char] = m
+    return meta
 
 
 def upload_references_files_api(client: genai.Client, image_paths: list[str]) -> list:
@@ -122,8 +145,12 @@ def generate_image(
     
     # Build payload: references + [previous image if edit] + prompt
     if previous_image is not None:
-        # Edit mode: include previous image for refinement
-        payload = references + [previous_image, f"Refine this image. {prompt}"]
+        # Edit mode: include previous image for refinement with explicit instructions
+        edit_prompt = (
+            f"You are refining the provided image. "
+            f"Modify and correct the image according to these specific instructions:\n\n{prompt}"
+        )
+        payload = references + [previous_image, edit_prompt]
         console.print(f"  📎 Including previous image for refinement (edit mode)")
     else:
         payload = references + [prompt]

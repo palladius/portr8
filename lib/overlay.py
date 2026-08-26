@@ -69,16 +69,12 @@ def create_score_overlay(
     img = PILImage.open(image_path).convert("RGBA")
     width, height = img.size
     
-    # Overall score = min of 3 axes (the convergence bottleneck)
-    overall_score = min(
-        verdict.facial_similarity,
-        verdict.adherence_score,
-        verdict.scene_adaptation,
-    )
+    # Single overlay score = arithmetic mean (MEDIA) of all evaluated axes
+    overall_score = verdict.average_score
     
-    # Font sizes: iteration is BIG, score is medium
-    iter_font_size = max(48, height // 10)  # ~10% of image height
-    score_font_size = max(36, height // 14)  # ~7% of image height
+    # Font sizes: iteration is BIG, score is medium (~10% smaller for perfect fit inside pill)
+    iter_font_size = max(42, int(height * 0.085))
+    score_font_size = max(32, int(height * 0.062))
     try:
         iter_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", iter_font_size)
         score_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", score_font_size)
@@ -90,9 +86,10 @@ def create_score_overlay(
     overlay = PILImage.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     
-    padding_x = 14
-    padding_y = 8
-    margin = 12
+    padding_x = 16
+    padding_y = 10
+    margin = 14
+    text_color = (255, 224, 0, 255)  # Warm bright yellow for perfect readability
     
     # --- TOP-LEFT: Big "#N" ---
     iter_text = f"#{iteration}"
@@ -103,13 +100,13 @@ def create_score_overlay(
     draw.rounded_rectangle(
         [(margin, margin),
          (margin + tw_iter + 2 * padding_x, margin + th_iter + 2 * padding_y)],
-        radius=10,
-        fill=(0, 0, 0, 153),  # 60% opacity
+        radius=12,
+        fill=(0, 0, 0, 165),  # 65% opacity dark
     )
     draw.text((margin + padding_x, margin + padding_y), iter_text,
-              fill=(255, 255, 255, 255), font=iter_font)
+              fill=text_color, font=iter_font)
     
-    # --- BOTTOM-RIGHT: Score ---
+    # --- BOTTOM-RIGHT: Score (Average) ---
     score_text = f"{overall_score:.1f}"
     bbox_score = draw.textbbox((0, 0), score_text, font=score_font)
     tw_score = bbox_score[2] - bbox_score[0]
@@ -120,20 +117,20 @@ def create_score_overlay(
     
     # Color the score pill based on quality
     if overall_score >= 8.0:
-        pill_color = (0, 150, 0, 178)     # green
+        pill_color = (0, 140, 0, 185)     # green
     elif overall_score >= 6.0:
-        pill_color = (0, 0, 0, 153)       # neutral dark
+        pill_color = (0, 0, 0, 165)       # neutral dark
     else:
-        pill_color = (180, 0, 0, 178)     # red
+        pill_color = (180, 0, 0, 185)     # red
     
     draw.rounded_rectangle(
         [(score_rect_x, score_rect_y),
          (score_rect_x + tw_score + 2 * padding_x, score_rect_y + th_score + 2 * padding_y)],
-        radius=10,
+        radius=12,
         fill=pill_color,
     )
     draw.text((score_rect_x + padding_x, score_rect_y + padding_y), score_text,
-              fill=(255, 255, 255, 255), font=score_font)
+              fill=text_color, font=score_font)
     
     # Composite and save
     composite = PILImage.alpha_composite(img, overlay)
@@ -164,8 +161,8 @@ def create_failure_overlay(
         verdict.scene_adaptation,
     )
     
-    iter_font_size = max(48, height // 10)
-    score_font_size = max(36, height // 14)
+    iter_font_size = max(42, int(height * 0.085))
+    score_font_size = max(32, int(height * 0.062))
     try:
         iter_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", iter_font_size)
         score_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", score_font_size)
@@ -176,10 +173,11 @@ def create_failure_overlay(
     overlay = PILImage.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     
-    padding_x = 14
-    padding_y = 8
-    margin = 12
-    red_pill = (180, 0, 0, 178)  # red at 70% opacity
+    padding_x = 16
+    padding_y = 10
+    margin = 14
+    text_color = (255, 224, 0, 255)
+    red_pill = (180, 0, 0, 185)
     
     # --- TOP-LEFT: Big "#N" (red) ---
     iter_text = f"#{iteration}"
@@ -190,11 +188,11 @@ def create_failure_overlay(
     draw.rounded_rectangle(
         [(margin, margin),
          (margin + tw_iter + 2 * padding_x, margin + th_iter + 2 * padding_y)],
-        radius=10,
+        radius=12,
         fill=red_pill,
     )
     draw.text((margin + padding_x, margin + padding_y), iter_text,
-              fill=(255, 255, 255, 255), font=iter_font)
+              fill=text_color, font=iter_font)
     
     # --- BOTTOM-RIGHT: Score (red) ---
     score_text = f"{overall_score:.1f}"
@@ -208,11 +206,11 @@ def create_failure_overlay(
     draw.rounded_rectangle(
         [(score_rect_x, score_rect_y),
          (score_rect_x + tw_score + 2 * padding_x, score_rect_y + th_score + 2 * padding_y)],
-        radius=10,
+        radius=12,
         fill=red_pill,
     )
     draw.text((score_rect_x + padding_x, score_rect_y + padding_y), score_text,
-              fill=(255, 255, 255, 255), font=score_font)
+              fill=text_color, font=score_font)
     
     composite = PILImage.alpha_composite(img, overlay)
     composite.convert("RGB").save(output_path)

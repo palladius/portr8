@@ -51,8 +51,9 @@ def create_score_overlay(
     The banner is drawn ON TOP of the image at bottom center, semi-transparent.
     Output image has the SAME dimensions as the input (no size change).
     
-    Banner text is minimal: #N F=X.X A=X.X S=X.X
-    No emoji. No verdict label. Just the 3 scores.
+    Banner text is minimal: #N X.X (iteration number + single overall score).
+    Overall score = min(facial, adherence, scene) — the convergence bottleneck.
+    No emoji. No labels. Just the number.
     
     Args:
         image_path: Path to the source image
@@ -69,13 +70,13 @@ def create_score_overlay(
     img = PILImage.open(image_path).convert("RGBA")
     width, height = img.size
     
-    # Build minimal banner text: #N F=X.X A=X.X S=X.X
-    banner_text = (
-        f"#{iteration} "
-        f"F={verdict.facial_similarity:.1f} "
-        f"A={verdict.adherence_score:.1f} "
-        f"S={verdict.scene_adaptation:.1f}"
+    # Build minimal banner text: #N X.X (single overall score = min of 3 axes)
+    overall_score = min(
+        verdict.facial_similarity,
+        verdict.adherence_score,
+        verdict.scene_adaptation,
     )
+    banner_text = f"#{iteration} {overall_score:.1f}"
     
     # Load font
     banner_height = max(40, height // 20)  # ~5% of image height, min 40px
@@ -130,7 +131,7 @@ def create_failure_overlay(
     """Create a floating red failure overlay.
     
     Same dimensions as input. Red semi-transparent banner at bottom.
-    Text: #N FAIL F=X.X A=X.X S=X.X
+    Text: #N X.X (single overall score = min of 3 axes)
     """
     if output_path is None:
         output_path = image_path.parent / f"{image_path.stem}_failure{image_path.suffix}"
@@ -138,13 +139,13 @@ def create_failure_overlay(
     img = PILImage.open(image_path).convert("RGBA")
     width, height = img.size
     
-    # Minimal failure text
-    banner_text = (
-        f"#{iteration} FAIL "
-        f"F={verdict.facial_similarity:.1f} "
-        f"A={verdict.adherence_score:.1f} "
-        f"S={verdict.scene_adaptation:.1f}"
+    # Minimal failure text — single score
+    overall_score = min(
+        verdict.facial_similarity,
+        verdict.adherence_score,
+        verdict.scene_adaptation,
     )
+    banner_text = f"#{iteration} {overall_score:.1f}"
     
     banner_height = max(40, height // 20)
     font_size = banner_height // 2

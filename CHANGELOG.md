@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.1] — 2026-08-26
+
+### 🏷️ Simplified Overlay
+
+- 🏷️ Overlay text simplified: `#1 F=7.2 A=7.8 S=7.5` → `#1 7.2` (single number = min of 3 axes)
+- 🏷️ Same change for failure overlays
+- 📄 README.md generation confirmed working in each output folder
+
 ## [0.5.0] — 2026-08-26
 
 ### 🔁 Feedback Loop Fix — "The Loop That Actually Loops"

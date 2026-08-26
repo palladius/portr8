@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] — 2026-08-26
+
+### 🔁 Feedback Loop Fix — "The Loop That Actually Loops"
+
+**BREAKING**: The convergence loop now genuinely improves between iterations.
+
+Three critical bugs fixed:
+
+- 🐛 **Bug #1 — Dead prompt**: Augmented prompt was IDENTICAL every iteration. Strategist now
+  extracts specific judge rationale text and includes it in the next prompt (e.g., "nose too wide",
+  "wrong hair color"), so the image model gets directed, evolving feedback.
+- 🐛 **Bug #2 — Fake edit mode**: "edit" vs "regenerate" was logged but both did the same thing.
+  Now "edit" passes the previous iteration's image to the generator for refinement, while
+  "regenerate" starts from scratch with references only.
+- 🐛 **Bug #3 — Judge ceiling at 7.5**: Judge had no scoring rubric, invented its own scale where
+  7.5 = "strong resemblance" and 8.0 = impossible. Added explicit scoring anchors:
+  8.0 = "immediately recognizable", 9.0 = "could fool a friend".
+- 🎯 Strategist now receives `target_score` to calibrate feedback thresholds (below-target scores
+  trigger specific CORRECTION directives, above-target scores get no corrections).
+
 ## [0.4.1] — 2026-08-25
 
 ### 📄 README.md + Version in Reports

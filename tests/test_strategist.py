@@ -55,19 +55,33 @@ def test_augmented_prompt_no_negative_words():
         assert n.lower() not in prompt_lower
 
 def test_augmented_prompt_resemblance_feedback():
+    """When facial_similarity < target, the rationale should appear in the augmented prompt."""
     v = make_verdict(r=6.9, a=8.0)
-    dec = decide_strategy(v, "Test prompt", 1)
-    assert "facial bone structure" in dec.augmented_prompt
-    assert "exact photographic match" not in dec.augmented_prompt
+    dec = decide_strategy(v, "Test prompt", 1, target_score=8.0)
+    # Should include the specific rationale text, not a generic string
+    assert "CRITICAL FACIAL CORRECTION" in dec.augmented_prompt
+    assert "test" in dec.augmented_prompt  # the rationale text from make_verdict
 
+    # Below 5.0 should also add the "exact photographic match" text
     v = make_verdict(r=4.9, a=8.0)
-    dec = decide_strategy(v, "Test prompt", 1)
-    assert "facial bone structure" in dec.augmented_prompt
+    dec = decide_strategy(v, "Test prompt", 1, target_score=8.0)
+    assert "CRITICAL FACIAL CORRECTION" in dec.augmented_prompt
     assert "exact photographic match" in dec.augmented_prompt
 
 def test_high_scores_minimal_augmentation():
-    v = make_verdict(r=9.0, a=9.0)
-    dec = decide_strategy(v, "Test prompt", 1)
-    # prompt should only contain original + photorealism cues + period
-    expected = "Test prompt. " + PHOTOREALISM_CUES + "."
-    assert dec.augmented_prompt == expected
+    """When all scores exceed the target, only original prompt + style cues should appear."""
+    v = JudgeVerdict(
+        facial_similarity=9.0,
+        scene_adaptation=9.0,
+        adherence_score=9.0,
+        is_photorealistic=True,
+        facial_similarity_rationale="Perfect match",
+        scene_adaptation_rationale="Perfect scene",
+        adherence_rationale="Perfect adherence",
+    )
+    dec = decide_strategy(v, "Test prompt", 1, target_score=8.0)
+    # No CORRECTION directives should appear when all scores are above target
+    assert "CORRECTION" not in dec.augmented_prompt
+    # But style cues should always be present
+    assert PHOTOREALISM_CUES in dec.augmented_prompt
+

@@ -40,6 +40,7 @@ def decide_strategy(
     iteration: int,
     previous_augmented_prompt: str | None = None,
     image_type: str = "photo",
+    target_score: float = 8.0,
 ) -> StrategyDecision:
     """Decide whether to edit or regenerate, and build augmented prompt.
     
@@ -77,6 +78,7 @@ def decide_strategy(
     augmented = _augment_prompt(
         original_prompt, verdict, feedback_points, previous_augmented_prompt,
         image_type=image_type,
+        target_score=target_score,
     )
     
     # Build rationale
@@ -99,23 +101,29 @@ def _augment_prompt(
     feedback_points: list[str],
     previous_augmented: str | None,
     image_type: str = "photo",
+    target_score: float = 8.0,
 ) -> str:
-    """Build an augmented prompt incorporating judge feedback.
+    """Build an augmented prompt incorporating SPECIFIC judge feedback.
     
     CRITICAL: Only use POSITIVE blueprinting. Never add negative constraints.
+    Key change from v0.4.1: we now extract specific issues from judge rationale
+    and include them, so the prompt EVOLVES each iteration.
     """
     parts = [original_prompt.rstrip(".")]
     
     # Always add style-appropriate cues
     parts.append(get_style_cues(image_type))
     
-    # Add positive corrections based on facial similarity feedback
-    if verdict.facial_similarity < 7.0:
-        # Extract useful details from rationale for positive reinforcement
-        parts.append(
-            "Maintain the exact facial bone structure, eye color, nose shape, "
-            "and distinctive features of the person in the reference photos"
-        )
+    # --- FACIAL SIMILARITY FEEDBACK (specific, from rationale) ---
+    if verdict.facial_similarity < target_score:
+        # Extract and forward the SPECIFIC rationale so the model knows what to fix
+        rationale = verdict.facial_similarity_rationale
+        if rationale:
+            # Reframe as a positive correction directive
+            parts.append(
+                f"CRITICAL FACIAL CORRECTION — the previous attempt had this issue: "
+                f"\"{rationale}\". Fix this by closely matching the face in the reference photos"
+            )
     
     if verdict.facial_similarity < 5.0:
         parts.append(
@@ -123,18 +131,29 @@ def _augment_prompt(
             "preserving every unique facial feature, wrinkle, and skin imperfection"
         )
     
-    # Scene adaptation: clothing should match the scene, not reference photos
+    # --- SCENE ADAPTATION FEEDBACK (specific, from rationale) ---
+    if verdict.scene_adaptation < target_score:
+        rationale = verdict.scene_adaptation_rationale
+        if rationale:
+            parts.append(
+                f"SCENE ADAPTATION CORRECTION — previous issue: "
+                f"\"{rationale}\". Dress the person appropriately for the scene described in the prompt"
+            )
+    
     if verdict.scene_adaptation < 5.0:
         parts.append(
             "The person should wear clothing and accessories appropriate for the described scene. "
             "Use reference photos for FACIAL IDENTITY ONLY, not for clothing or accessories"
         )
     
-    # Add positive corrections based on adherence feedback
-    if verdict.adherence_score < 7.0:
-        parts.append(
-            "Ensure the scene, setting, and action precisely match the original description"
-        )
+    # --- ADHERENCE FEEDBACK (specific, from rationale) ---
+    if verdict.adherence_score < target_score:
+        rationale = verdict.adherence_rationale
+        if rationale:
+            parts.append(
+                f"SCENE ADHERENCE CORRECTION — previous issue: "
+                f"\"{rationale}\". Ensure the scene precisely matches the original description"
+            )
     
     # Anti-beautification reinforcement (only for photo — cartoon IS beautified by nature)
     if verdict.anti_beautification_flag and image_type == "photo":

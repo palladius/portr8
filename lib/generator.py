@@ -106,15 +106,27 @@ def generate_image(
     model: str = "gemini-3.1-flash-image-preview",
     seed: int | None = None,
     output_path: Path | None = None,
+    previous_image: PILImage.Image | None = None,
 ) -> tuple[PILImage.Image | None, str]:
     """Generate a single image with character consistency.
     
     Returns: (PIL image or None, model name that succeeded)
     
     Uses model fallback chain if primary model fails.
+    
+    If previous_image is provided (edit mode), includes it in the payload
+    so the model can refine from the previous iteration rather than
+    generating from scratch.
     """
     models_to_try = [model] + [m for m in DEFAULT_MODELS if m != model]
-    payload = references + [prompt]
+    
+    # Build payload: references + [previous image if edit] + prompt
+    if previous_image is not None:
+        # Edit mode: include previous image for refinement
+        payload = references + [previous_image, f"Refine this image. {prompt}"]
+        console.print(f"  📎 Including previous image for refinement (edit mode)")
+    else:
+        payload = references + [prompt]
     
     config = types.GenerateContentConfig(
         response_modalities=["IMAGE"],

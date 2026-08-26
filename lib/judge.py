@@ -72,6 +72,17 @@ traits (moles, wrinkles, asymmetries), ear shape, jawline, age, body build.
 Do NOT reward matching clothing, accessories, or pose from the reference photos.
 The reference photos are for FACE IDENTITY comparison ONLY.
 
+SCORING ANCHORS (use the FULL 1-10 scale):
+- 9.0-10.0: Perfect — could fool a close friend or family member of this person
+- 8.0-8.9:  Excellent — immediately and unmistakably recognizable as this person, minor imperfections
+- 7.0-7.9:  Good — strong resemblance but with noticeable differences in some features
+- 5.0-6.9:  Fair — vaguely similar, some features match but others are clearly wrong
+- 1.0-4.9:  Poor — different person, wrong age/hair/build
+
+IMPORTANT: A score of 8.0 does NOT require photographic perfection. If a friend of
+this person would immediately say "that's them!", score 8.0 or above. Do NOT cap scores
+at 7.5 just because it's AI-generated.
+
 IMPORTANT — Prompt Overrides: If the prompt explicitly modifies the character's appearance
 (e.g., "without beard", "without glasses", "with long hair"), score based on the MODIFIED
 appearance, even if ALL reference photos show the original look. The prompt is the ground
@@ -80,10 +91,11 @@ truth for intentional appearance changes.
 ## Axis 2: Scene Adaptation (scene_adaptation, 1.0-10.0)
 Does the person's clothing, pose, accessories, and overall presentation match what the
 PROMPT describes? Score based on how well the character has been ADAPTED to the scene:
-- Score HIGH (8-10) if clothing/pose/accessories are perfectly appropriate for the scene
-- Score MEDIUM (5-7) if clothing is acceptable but not ideal for the scene
-- Score LOW (1-4) if the person is wearing the SAME outfit from the reference photos
-  when the scene clearly calls for different attire (e.g., tourist t-shirt at a formal dinner)
+- 9.0-10.0: Flawless scene-appropriate styling, looks completely natural
+- 8.0-8.9:  Excellent adaptation, clothing and pose are highly appropriate
+- 7.0-7.9:  Good adaptation, minor mismatches in attire or accessories
+- 5.0-6.9:  Acceptable but clearly not ideal for the scene
+- 1.0-4.9:  Wearing the SAME outfit from reference photos when the scene calls for different attire
 
 ## Axis 3: Adherence (adherence_score, 1.0-10.0)  
 Does the overall scene match the prompt? Evaluate:
@@ -92,6 +104,13 @@ Does the overall scene match the prompt? Evaluate:
 - Objects mentioned in prompt present?
 - Lighting/mood/style match
 - Overall composition matches intent
+
+SCORING ANCHORS:
+- 9.0-10.0: Every element of the prompt is perfectly rendered
+- 8.0-8.9:  All major elements present, minor details could improve
+- 7.0-7.9:  Most elements present but some are missing or inaccurate
+- 5.0-6.9:  Partially matches, significant elements missing
+- 1.0-4.9:  Fundamentally different scene from what was requested
 
 {photo_instructions}
 

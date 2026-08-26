@@ -171,6 +171,7 @@ def main():
                 iteration=iteration,
                 previous_augmented_prompt=augmented_prompt,
                 image_type=config.image_type,
+                target_score=config.target_score,
             )
             strategy = strategy_decision.strategy
             augmented_prompt = strategy_decision.augmented_prompt
@@ -179,6 +180,12 @@ def main():
         console.print(f"\n🎨 Generating image (strategy: {strategy})...")
         image_path = output_dir / f"iter_{iteration + 1:02d}.png"
         
+        # For edit mode, pass previous image so the model can refine it
+        prev_img = None
+        if strategy == "edit" and previous_image_path and previous_image_path.exists():
+            from PIL import Image as PILImage
+            prev_img = PILImage.open(previous_image_path)
+        
         generated_img, model_used = generate_image(
             client=client,
             prompt=augmented_prompt,
@@ -186,11 +193,15 @@ def main():
             model=config.image_model,
             seed=config.seed,
             output_path=image_path,
+            previous_image=prev_img,
         )
         
         if generated_img is None:
             console.print("[bold red]❌ Image generation failed across all models![/bold red]")
             break
+        
+        # Track current image for potential edit in next iteration
+        previous_image_path = image_path
         
         # Judge the image
         console.print(f"\n👨⚖️ Judging...")

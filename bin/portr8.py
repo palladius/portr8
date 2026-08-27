@@ -81,9 +81,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target", type=float, default=float(os.getenv("PORTR8_TARGET_SCORE", "8.0")), help="Target score (both axes must reach this)")
     parser.add_argument("--max-iterations", type=int, default=int(os.getenv("PORTR8_MAX_ITERATIONS", "20")), help="Maximum iterations (default: $PORTR8_MAX_ITERATIONS or 20)")
     parser.add_argument("--dual-strategy", action="store_true", help="Use dual strategy (both edit + regenerate per iteration, pick best)")
-    parser.add_argument("--no-edit", action="store_true", default=False,
-                        help="ALWAYS regenerate from scratch, never edit. More variability — "
-                             "scores may bounce but you get N truly different faces to pick from")
+    parser.add_argument("--allow-edit", action="store_true", default=False,
+                        help="Allow EDIT strategy (pass previous image for refinement). "
+                             "Default is NO-EDIT: always regenerate from scratch for maximum variability")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     parser.add_argument("--ref-transport", choices=["files_api", "pil"], default=os.getenv("PORTR8_REF_TRANSPORT", "files_api"), help="Reference transport method")
     parser.add_argument("--image-type", choices=["photo", "cartoon", "illustration"], default="photo",
@@ -120,7 +120,7 @@ def main():
         target_score=args.target,
         max_iterations=args.max_iterations,
         dual_strategy=args.dual_strategy,
-        no_edit=args.no_edit,
+        no_edit=not args.allow_edit,
         seed=args.seed,
         ref_transport=args.ref_transport,
         image_type=args.image_type,

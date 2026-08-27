@@ -169,6 +169,7 @@ class RunConfig(BaseModel):
     target_score: float = Field(default_factory=lambda: float(os.getenv("PORTR8_TARGET_SCORE", "8.0")))
     max_iterations: int = Field(default_factory=lambda: int(os.getenv("PORTR8_MAX_ITERATIONS", "20")))
     dual_strategy: bool = False
+    no_edit: bool = False  # When True, always regenerate — never pass previous image
     seed: int | None = None
     ref_transport: str = Field(default_factory=lambda: os.getenv("PORTR8_REF_TRANSPORT", "files_api"))
     image_type: Literal["photo", "cartoon", "illustration"] = "photo"

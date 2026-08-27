@@ -7,7 +7,7 @@ Goal: find which model has the widest spread (high for Kate, low for wrong).
 import json, os, sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "portr8"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from google import genai
 from google.genai import types
@@ -16,6 +16,7 @@ from rich.table import Table
 from PIL import Image
 
 from lib.judge import build_judge_prompt, JudgeVerdict
+from lib.constants import CALIBRATION_MODELS
 
 console = Console()
 
@@ -35,15 +36,7 @@ WRONG_TARGET = RUN_DIR / "iter_12.png"
 
 PROMPT = "A portrait photo of Kate"
 
-MODELS = [
-    "gemini-3.5-flash",          # current judge
-    "gemini-3.7-flash",          # newest flash
-    "gemini-3.6-flash",          # mid flash
-    "gemini-3.1-flash-lite",     # lite
-    "gemini-3.1-pro-preview",    # pro!
-    "gemini-omni-flash-preview", # omni!
-    "gemini-2.5-flash-lite",     # old lite
-]
+MODELS = CALIBRATION_MODELS
 
 
 def judge_one(client, target_path, ref_paths, model):

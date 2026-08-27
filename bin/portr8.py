@@ -81,6 +81,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target", type=float, default=float(os.getenv("PORTR8_TARGET_SCORE", "8.0")), help="Target score (both axes must reach this)")
     parser.add_argument("--max-iterations", type=int, default=int(os.getenv("PORTR8_MAX_ITERATIONS", "20")), help="Maximum iterations (default: $PORTR8_MAX_ITERATIONS or 20)")
     parser.add_argument("--dual-strategy", action="store_true", help="Use dual strategy (both edit + regenerate per iteration, pick best)")
+    parser.add_argument("--no-edit", action="store_true", default=False,
+                        help="ALWAYS regenerate from scratch, never edit. More variability — "
+                             "scores may bounce but you get N truly different faces to pick from")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     parser.add_argument("--ref-transport", choices=["files_api", "pil"], default=os.getenv("PORTR8_REF_TRANSPORT", "files_api"), help="Reference transport method")
     parser.add_argument("--image-type", choices=["photo", "cartoon", "illustration"], default="photo",
@@ -93,6 +96,12 @@ def main():
     
     # Check API key
     api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        api_key = os.environ.get("GOOGLE_API_KEY")
+    else:
+        # Ensure google-genai doesn't accidentally prefer an unrestricted GOOGLE_API_KEY
+        os.environ.pop("GOOGLE_API_KEY", None)
+        
     if not api_key:
         console.print("[bold red]❌ GEMINI_API_KEY not set. Run: export GEMINI_API_KEY=your-key[/bold red]")
         sys.exit(1)
@@ -111,6 +120,7 @@ def main():
         target_score=args.target,
         max_iterations=args.max_iterations,
         dual_strategy=args.dual_strategy,
+        no_edit=args.no_edit,
         seed=args.seed,
         ref_transport=args.ref_transport,
         image_type=args.image_type,
@@ -124,7 +134,7 @@ def main():
         f"👤 Character: [cyan]{config.character}[/cyan]\n"
         f"🎯 Target: [green]{config.target_score}/10[/green] (both axes)\n"
         f"🔄 Max iterations: {config.max_iterations}\n"
-        f"🧠 Strategy: {'Dual (edit+regenerate)' if config.dual_strategy else 'Adaptive'}\n"
+        f"🧠 Strategy: {'Dual (edit+regenerate)' if config.dual_strategy else '🚫 NO-EDIT (always regenerate)' if config.no_edit else 'Adaptive'}\n"
         f"🖼️  Image type: {config.image_type}\n"
         f"🎨 Model: {config.image_model}",
         title="portr8",
@@ -222,13 +232,19 @@ def main():
             strategy = strategy_decision.strategy
             augmented_prompt = strategy_decision.augmented_prompt
         
+        # --no-edit: force regenerate, keep the smarter prompt but don't pass previous image
+        if config.no_edit and strategy == "edit":
+            strategy = "regenerate"
+            console.print("  🚫 [yellow]--no-edit: overriding EDIT → REGENERATE (keeping feedback prompt)[/yellow]")
+        
         # Generate image
         console.print(f"\n🎨 Generating image (strategy: {strategy})...")
         image_path = output_dir / f"iter_{iteration + 1:02d}.png"
         
         # For edit mode, pass previous image so the model can refine it
+        # When --no-edit, prev_img stays None → always fresh generation
         prev_img = None
-        if strategy == "edit" and previous_image_path and previous_image_path.exists():
+        if not config.no_edit and strategy == "edit" and previous_image_path and previous_image_path.exists():
             from PIL import Image as PILImage
             prev_img = PILImage.open(previous_image_path)
         
@@ -262,6 +278,7 @@ def main():
                 characters_metadata=characters_meta,
                 model=config.judge_model,
                 image_type=config.image_type,
+                character_ref_counts={char: len(paths) for char, paths in ref_dict.items()},
             )
         except Exception as e:
             console.print(f"[bold red]❌ Judge failed: {e}[/bold red]")

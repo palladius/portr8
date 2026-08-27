@@ -9,12 +9,10 @@ from google.genai import types
 from PIL import Image as PILImage
 from rich.console import Console
 
+from lib.constants import DEFAULT_JUDGE_MODEL
 from lib.models import JudgeVerdict
 
 console = Console()
-
-# Default judge model (empirically best — see docs/SPECS.md Lesson #12)
-DEFAULT_JUDGE_MODEL = "gemini-3.5-flash"
 
 
 def build_judge_prompt(
@@ -23,6 +21,7 @@ def build_judge_prompt(
     characters: list[str] | None = None,
     characters_metadata: dict | None = None,
     image_type: str = "photo",
+    character_ref_counts: dict[str, int] | None = None,
 ) -> str:
     """Build the 3-axis judge prompt with multi-character support and character metadata."""
     char_list = characters if characters else [character_name]
@@ -71,14 +70,29 @@ EVALUATE BIOMETRICS FOR EACH CHARACTER INDEPENDENTLY:
     else:
         multi_instructions = f"""You are evaluating an AI-generated {image_type} image of "{character_name}".{char_profiles_text}"""
 
+    # Build image order mapping
+    image_order_lines = [
+        "IMAGE ORDER & REFERENCE MAPPING:",
+        "- Image 1: The AI-generated target image under evaluation",
+    ]
+    if character_ref_counts:
+        curr_idx = 2
+        for char_name, count in character_ref_counts.items():
+            if count == 1:
+                image_order_lines.append(f"- Image {curr_idx}: Authentic reference photograph for '{char_name}'")
+            elif count > 1:
+                image_order_lines.append(f"- Images {curr_idx}-{curr_idx + count - 1}: Authentic reference photographs for '{char_name}'")
+            curr_idx += count
+    else:
+        image_order_lines.append("- Subsequent images: Authentic real-life reference photographs")
+    image_order_text = "\n".join(image_order_lines)
+
     return f"""You are an unsparing forensic biometric likeness, scene adaptation, AND prompt adherence judge.
 
 {multi_instructions}
 Scene prompt: "{prompt}"
 
-IMAGE ORDER:
-- Image 1: The AI-generated target image under evaluation
-- Subsequent images: Authentic real-life reference photographs
+{image_order_text}
 
 EVALUATE THREE INDEPENDENT AXES:
 
@@ -89,6 +103,13 @@ traits (moles, wrinkles, asymmetries), ear shape, jawline, age, body build.
 
 Do NOT reward matching clothing, accessories, or pose from the reference photos.
 The reference photos are for FACE IDENTITY comparison ONLY.
+
+CRITICAL IDENTITY & ANTI-BEAUTIFICATION RULES:
+- Compare each character STRICTLY against their assigned reference photographs above.
+- A generic attractive AI face with similar hair color/styling is NOT a match (MAX SCORE 5.0).
+- If a character is depicted in profile or at an angle where their facial structure cannot be conclusively verified, DO NOT award higher than 6.0-6.5.
+- Look closely for distinctive biometrics: exact nose bridge/curvature, dimples, eye crinkles, facial proportions, asymmetries.
+- If AI smoothing or beautification is present on ANY character, flag anti_beautification_flag=true and CAP facial_similarity at 5.0.
 
 SCORING ANCHORS (use the FULL 1-10 scale):
 - 9.0-10.0: Perfect — could fool a close friend or family member
@@ -129,6 +150,7 @@ def judge_image(
     characters_metadata: dict | None = None,
     model: str = DEFAULT_JUDGE_MODEL,
     image_type: str = "photo",
+    character_ref_counts: dict[str, int] | None = None,
 ) -> JudgeVerdict:
     """Judge a generated image on facial similarity, scene adaptation, and adherence."""
     char_list = characters if characters else ([c.strip() for c in character_name.split(",") if c.strip()] if character_name else [])
@@ -147,6 +169,7 @@ def judge_image(
             characters=char_list,
             characters_metadata=characters_metadata,
             image_type=image_type,
+            character_ref_counts=character_ref_counts,
         )
     )
     

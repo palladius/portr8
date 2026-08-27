@@ -10,7 +10,8 @@ Tests across 5+ models. Produces a comprehensive calibration matrix.
 import json, os, sys, time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "portr8"))
+# portr8 root is two levels up from bin/calibration/
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from google import genai
 from google.genai import types
@@ -19,6 +20,7 @@ from rich.table import Table
 from PIL import Image
 
 from lib.judge import build_judge_prompt, JudgeVerdict
+from lib.constants import CALIBRATION_MODELS, CALIBRATION_CHARACTERS
 
 console = Console()
 
@@ -39,13 +41,7 @@ CHARACTERS = {
     },
 }
 
-MODELS = [
-    "gemini-3.5-flash",          # current judge
-    "gemini-3.1-flash-lite",     # best self-score
-    "gemini-3.1-pro-preview",    # pro
-    "gemini-2.5-flash-lite",     # best spread
-    "gemini-3.7-flash",          # newest
-]
+MODELS = CALIBRATION_MODELS
 
 
 def get_photos(char_dir, max_photos=8):

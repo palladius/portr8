@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 Format: [Gitmoji](https://gitmoji.dev/) + [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.0] — 2026-08-27
+
+### 🚫 No-Edit Mode & Centralized Constants
+
+- 🚫 **`--no-edit` flag**: Forces ALWAYS REGENERATE mode — never passes previous image to the generator. Judge feedback is still incorporated into the augmented prompt, but each iteration produces a truly independent face. Fixes the "90% edit = same face" problem where edit mode just tweaked colors/lighting without changing facial identity.
+- 📦 **`lib/constants.py`**: New centralized constants module with all model lists, calibration config, and sigmoid remap parameters. No more hardcoded model names scattered across scripts.
+- 🧹 **Dead model cleanup**: Removed 2.X models from judge/calibration lists (dead for text, still alive for image generation). Added `gemini-3.6-flash` per user request.
+- 🔗 **Judge imports refactored**: `DEFAULT_JUDGE_MODEL` now imported from `lib/constants.py` instead of hardcoded in `lib/judge.py`.
+- 🔬 **Calibration scripts updated**: `bin/calibration/*.py` now import `CALIBRATION_MODELS` from constants — single source of truth.
+
+## [0.6.2] — 2026-08-27
+
+### 🎯 Forensic Multi-Character Reference Mapping & Clean Crop Refinements
+
+- 🎯 **Explicit Reference Photo Mapping**: `lib/judge.py` now informs the LLM judge of the exact reference image slice assigned to each character (`Images 2-5: Kate`, `Images 6-9: Riccardo`), eliminating cross-contamination during multi-character judging.
+- 🔬 **Anti-Beautification & Profile Guardrails**: Judge prompt strictly penalizes generic AI facial beauty (capped at 5.0) and caps unverified profile angles at 6.0–6.5 to stop false-positive premature convergence.
+- ✂️ **Surgical Crop Purge in `kate2016`**: Re-cropped `KR-e-0135` and `KR-e-0133` using Gemini-verified bounding boxes to completely eliminate Riccardo from Kate's reference crops; quarantined corrupted crop `KR-e-0136`.
+- 📖 **Authoritative Character Profile**: Added `data/characters/kate2016/character.yaml` specifying ground truth 2016 wedding biometrics, hair, and anti-smoothing directives.
+
 ## [0.6.1] — 2026-08-26
 
 ### 🔄 Enhanced Feedback Loop Transmission & YAML Character Ingestion
